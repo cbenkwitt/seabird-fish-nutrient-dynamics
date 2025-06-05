@@ -1,0 +1,226 @@
+#-----------mapping turbinaria n15 and seabird biomass-----------------
+
+##load packages
+```{r}
+
+#mapping:
+library(sf)
+library(ggspatial) #for scale bar
+
+#multiple color scales in one plot:
+library(ggnewscale)
+
+library(tidyverse)
+
+
+#combining plots:
+library(cowplot)
+```
+
+
+
+#load shape files
+```{r}
+
+my_sf1 <- read_sf("../data/maps/Motu_UTM6S/Motu_UTM6S.shp") #from courtney
+#the projected coordinate system is WGS 1984 UTM Zone 6S (EPSG 32706). 
+st_crs(my_sf1) #looks correct
+
+my_sf1b<-
+ my_sf1 %>%
+   st_transform(crs = 4326)
+#hm, only has motu polygons, not the outer rim outline. 
+
+#load outer rim:
+my_sf2 <- read_sf("../data/maps/FrenchPolynesia-Society-5/societe_tetiaroa_2020.shp") #from: https://dataverse.ird.fr/dataset.xhtml?persistentId=doi:10.23708/LHTEVZ
+my_sf2
+
+my_sf_forereef<-
+  my_sf2%>%
+  filter(L4_ATTRIB_ == "forereef")
+
+
+my_sf_rim<-
+  my_sf2%>%
+  filter(L3_ATTRIB_ == "Atoll rim")
+```
+
+
+#load seabird data
+```{r}
+#load in some gps data:
+isl_gps_dat<-read.csv("../data/seabird_gps_points.csv", stringsAsFactors = TRUE) %>%
+  filter(Motu != "Iti" ) #just for general study sites, no need for Iti
+isl_gps_dat
+
+
+#and seabird data
+sb_dat_full_w_Iti<-read.csv("../data/seabird_dat_focal_nests_side_by_transect_w_iti_nov_2023.csv")
+
+#log-transform:
+sb_dat_full_w_Iti2<-
+  sb_dat_full_w_Iti%>%
+  mutate(log_seabird_biomass = log(breeding_biomass_kgha+1))
+
+
+```
+
+
+#load turb data 
+```{r}
+
+turb_23_gps_dat<-read.csv("../data/turb_gps_points.csv")
+turb_23_dat<-read.csv("../data/turb_focal_isotopes_nov_2023.csv")
+
+turb_23_gps_dat2<-
+  turb_23_gps_dat%>%
+  rename(motu = Motu, 
+         side = Side,
+         waypoint = GPS_name)
+
+turb_23_gps_dat2
+
+turb_23_comb_dat<-
+  left_join(turb_23_dat, turb_23_gps_dat2,
+            by = join_by(motu, waypoint))
+turb_23_comb_dat
+#all good**
+
+turb_23_comb_dat_sf <- st_as_sf(turb_23_comb_dat, coords = c("Longitude", "Latitude"),  crs = 4326)
+turb_23_comb_dat_sf
+
+
+#create offset for plotting so points don't overlap too much: 
+turb_23_comb_dat2<-
+  turb_23_comb_dat%>%
+  mutate(offset_lat = case_when(motu == "Rimatuu"& side == "leeward"~ 0,
+                                motu == "Rimatuu"& side == "windward"~0,
+                                 motu == "Reiono"& side == "leeward"~ 0,
+                                motu == "Reiono"& side == "windward"~0,
+                                motu == "Aie"& side == "leeward"~ -0.00005,
+                                motu == "Aie"& side == "windward"~0.00005))%>%
+  mutate(offset_long = case_when(motu == "Rimatuu"& side == "leeward"~ -0.0008,
+                                motu == "Rimatuu"& side == "windward"~0.0008,
+                                 motu == "Reiono"& side == "leeward"~ -0.0002,
+                                motu == "Reiono"& side == "windward"~0.0002,
+                                motu == "Aie"& side == "leeward"~ 0,
+                                motu == "Aie"& side == "windward"~0))
+ turb_23_comb_dat2 
+
+```
+
+
+###---------Map it:------------
+```{r}
+
+#entire atoll, with rectangles around study motu:-----
+tet_map<-
+ggplot(my_sf1b) +
+  geom_sf(color = "black", fill = "#BABABA") + #fill = DEPTH_ATTR #fill = "#E5F5E0"
+  geom_sf(data = my_sf_forereef, color = "#DADADA", fill = "#DADADA")+ #"#DEEBF7
+    annotate("rect", xmin = -149.537, xmax = -149.5335, ymin = -17.01, ymax = -17.007, color = "black", fill = NA, lwd=.5)+
+      annotate("rect", xmin = -149.565, xmax = -149.546, ymin = -17.035, ymax = -17.016, color = "black", fill = NA, lwd=.5)+
+    annotate("rect", xmin = -149.55, xmax = -149.542, ymin = -17.05, ymax = -17.0425, color = "black", fill = NA, lwd=.5)+
+  annotation_scale(width_hint = .15)+
+  annotation_north_arrow(height = unit(.75, "cm"), width = unit(.75, "cm"), pad_y = unit(1, "cm"), pad_x = unit(1, "cm"))+
+     #geom_point(data=isl_gps_dat, aes(x=Longitude,y=Latitude), pch = 8, size = 4)+
+    scale_x_continuous( breaks = seq(-149.6, -149.54, by = .02))+
+    scale_y_continuous( breaks = seq(-17.05, -16.99, by = .02))+
+theme_bw() +
+   theme(panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+         panel.background = element_rect(fill = "transparent", color = NA),   # panel = plot area
+    plot.background = element_rect(fill = "transparent", color = NA),    # entire plot
+        legend.position = "none")
+tet_map
+
+
+#entire atoll with seabird and turb data:----
+all_turb_sb_map_clean<- 
+ggplot() +
+  geom_sf(data = my_sf1b, color = "black", fill = "#BABABA") + 
+      coord_sf(expand = FALSE)+
+ # annotation_scale(width_hint = .15, location = "tr")+
+     geom_point(data=sb_dat_full_w_Iti2, aes(x=Longitude,y=Latitude, color = log_seabird_biomass),  pch = 17)+
+   scale_x_continuous(limits = c(-149.565, -149.532))+
+    scale_y_continuous(limits = c(-17.051,-17.007))+
+    scale_color_viridis_c(option = "rocket", direction = 1,breaks = c(log(1),  log(11), log(101), log(501)),  labels = c(0,  10, 100, 500), name = "seabird biomass (kg/ha)", guide = guide_colorbar(direction = "vertical",  title.position = "top"))+ # log(51), #50, 
+    new_scale_colour()+
+  geom_point(data=turb_23_comb_dat2, aes(x=Longitude,y=Latitude,  color = X15N), 
+                       position = position_nudge(x = turb_23_comb_dat2$offset_long,
+                                                  y =turb_23_comb_dat2$offset_lat))+
+    scale_color_viridis_c(option = "mako", direction = 1, name = "macroalgal n15", guide = guide_colorbar(direction = "vertical",  title.position = "top"))+
+        geom_point(data=isl_gps_dat, aes(x=Longitude,y=Latitude), pch = 8, size = 4)+
+  theme_bw() +
+   theme(panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+        legend.position = "right",
+        legend.background = element_blank(),
+      #  legend.justification.inside = c(.25, 1), #        legend.justification.inside = c(1, .5),
+         legend.box = "vertical")
+all_turb_sb_map_clean
+
+
+
+all_turb_sb_map_clean_aie<-
+  all_turb_sb_map_clean+
+    annotation_scale(width_hint = .15, location = "tr")+
+  scale_x_continuous(limits = c(-149.537, -149.5335))+
+    scale_y_continuous(limits = c(-17.01,-17.007))+
+   theme(legend.position = "none",
+         axis.title = element_blank(),
+         axis.ticks = element_blank(),
+         axis.text = element_blank())
+all_turb_sb_map_clean_aie
+
+
+all_turb_sb_map_clean_rim<-
+  all_turb_sb_map_clean+
+      annotation_scale(width_hint = .15, location = "tr")+
+   scale_x_continuous(limits = c(-149.565, -149.546))+
+    scale_y_continuous(limits = c(-17.035,-17.016))+
+   theme(legend.position = "none",
+         axis.title = element_blank(),
+         axis.ticks = element_blank(),
+         axis.text = element_blank())
+all_turb_sb_map_clean_rim
+
+
+all_turb_sb_map_clean_rei<-
+  all_turb_sb_map_clean+
+        annotation_scale(width_hint = .15, location = "tr")+
+  scale_x_continuous(limits = c(-149.55, -149.542))+
+    scale_y_continuous(limits = c(-17.05,-17.0425))+
+   theme(legend.position = "none",
+         axis.title = element_blank(),
+         axis.ticks = element_blank(),
+         axis.text = element_blank())
+all_turb_sb_map_clean_rei
+
+##combine-----
+plot_panels<-
+  plot_grid(all_turb_sb_map_clean_aie, all_turb_sb_map_clean_rim, all_turb_sb_map_clean_rei, ncol = 1, align = "hv")
+plot_panels
+
+top_row<-plot_grid(tet_map, plot_panels, align = "hv")
+top_row
+
+
+#save legend colors:
+#ggsave(all_turb_sb_map_clean, filename = "../outputs/figures/supp_map_legends.pdf",     width  = 15, height = 8)
+
+```
+
+
+#combine map with algae~seabird plot form other file:
+```{r}
+
+all_plot_comb<-plot_grid(top_row, epred_draws_plot_algae, nrow = 2, rel_heights = c(1, .8), rel_widths = c(1, .8))
+all_plot_comb
+  
+#ggsave(all_plot_comb, filename = "../outputs/figures/supp_map_w_sb_algae_plot.pdf",     width  = 8, height = 10)
+
+```
+

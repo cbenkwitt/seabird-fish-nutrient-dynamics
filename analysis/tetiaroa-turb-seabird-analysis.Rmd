@@ -1,0 +1,143 @@
+
+
+#-----------checking relationship between turbinaria n15 and seabird biomass-----------------
+
+
+##load packages
+```{r}
+library(tidyverse) #for everything
+
+#for bayesian modelling, interpreting, plotting:
+library(brms)
+library(tidybayes)
+library(emmeans)
+library(jtools)
+library(tidybayes)
+library(modelr)
+
+```
+
+
+#load seabird and algae data:
+```{r}
+sb_dat_nov23<-read.csv("../data/seabird_dat_focal_nests_side_w_iti_nov_2023.csv")%>%
+  select(-X)%>%
+    rename(motu = Motu,
+         exposure = Exposure)
+#updated with new transect areas**
+
+
+turb_23_gps_dat<-read.csv("../data/turb_gps_points.csv")
+turb_23_dat<-read.csv("../data/turb_focal_isotopes_nov_2023.csv")
+
+```
+
+
+#sorting turbinaria data - first need to combine Turbinaria data with info on side of motu and gps coords:
+```{r}
+
+turb_23_gps_dat2<-
+  turb_23_gps_dat%>%
+  rename(motu = Motu, 
+         side = Side,
+         waypoint = GPS_name)
+
+
+turb_23_comb_dat<-
+  left_join(turb_23_dat, turb_23_gps_dat2,
+            by = join_by(motu, waypoint))
+turb_23_comb_dat
+#all good
+
+#reduce to useful columns:
+turb_23_comb_dat_r<-
+  turb_23_comb_dat%>%
+  mutate(exposure = case_when(side == "windward"~"Exposed",
+                              side == "leeward"~"Protected"))%>%
+  rename(Turb_N15 = X15N)%>%
+    select(motu, exposure, Turb_N15)
+turb_23_comb_dat_r
+```
+
+
+##combine turbinaria and seabirds:
+```{r}
+turb_sb_dat<-
+  left_join(turb_23_comb_dat_r, sb_dat_nov23)%>%
+  ungroup()
+turb_sb_dat
+```
+
+
+#Run analysis:-----
+```{r}
+#center data:
+turb_sb_dat_c<-
+  turb_sb_dat%>%
+  unite(motu_exposure, motu, exposure, remove = FALSE)  %>%
+  mutate( log_biomass_iti = log(breeding_biomass_kgha_side_w_Iti),
+         log_biomass_iti_c =  base::scale(log_biomass_iti, center= TRUE, scale = FALSE))
+turb_sb_dat_c
+
+
+#run model (built up in previous versions):
+turb_n15_logsb_nov23_nest_brm <- brm(Turb_N15  ~ log_biomass_iti_c + (1|motu/motu_exposure),
+                data=turb_sb_dat_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/turb_n15_logsb_nov23_nest_brm") #worked
+
+print(turb_n15_logsb_nov23_nest_brm)
+pp_check(turb_n15_logsb_nov23_nest_brm)#looks good
+plot(turb_n15_logsb_nov23_nest_brm, ask = FALSE)
+
+hypothesis(turb_n15_logsb_nov23_nest_brm, "log_biomass_iti_c>0") #PP = 0.98
+
+#back-transform estimates:
+turb_n15_logsb_nov23_nest_brm%>%
+  spread_draws(b_log_biomass_iti_c)%>%
+  median_hdi(log(2^b_log_biomass_iti_c))
+#1.335356	0.2569695	1.93319
+
+
+```
+
+
+
+##Plot it:
+```{r}
+
+#gather draws:
+sb_iti_draws<-
+turb_sb_dat_c %>%
+  data_grid(log_biomass_iti_c = seq_range(log_biomass_iti_c, n = 101)) %>%
+  add_epred_draws(turb_n15_logsb_nov23_nest_brm, ndraws = 500, re_formula = NA)
+
+#undo centering:
+mean(turb_sb_dat_c$log_biomass_iti)
+sb_iti_draws_rescale<-
+  sb_iti_draws%>%
+  mutate(log_biomass_iti = log_biomass_iti_c +3.630773)
+  
+
+
+epred_draws_plot_algae<-
+turb_sb_dat_c%>%
+  ggplot(aes(x = log_biomass_iti, y = Turb_N15)) +
+  geom_line(data = sb_iti_draws_rescale, aes(y = .epred, x = log_biomass_iti, group = .draw), color = "grey", alpha = .2, lwd = .5) +
+    ylab(expression(Macroalgal~italic(delta)^15*N)) +
+         xlab(expression(Seabird~breeding~biomass~(kg~ha^-1))) +
+          scale_x_continuous(limits = c(log(2), log(501)), labels = c(1,  10, 100, 500), breaks = c(log(2),  log(11), log(101), log(501)))+
+        geom_point(aes(x = log_biomass_iti, y = Turb_N15, color = log_biomass_iti),size = 2, alpha = .7)+ 
+    scale_color_viridis_c(option = "rocket", direction = 1,guide = "none")+
+  theme_bw() +
+   theme(panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(.8, .2))
+
+epred_draws_plot_algae
+
+```

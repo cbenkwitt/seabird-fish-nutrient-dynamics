@@ -1,0 +1,2154 @@
+
+
+#-----------testing for effect of seabird nutrients on fish nutrient storage, nutrient release, demographics-----------------
+
+
+##load packages
+```{r}
+library(tidyverse) #for everything
+
+library(cowplot) #for combining plots
+
+#for bayesian modelling and interpreting:
+library(brms)
+library(tidybayes)
+library(emmeans)
+
+library(ggnewscale)
+
+library(jtools)
+
+
+```
+
+
+#load data 
+```{r}
+acan_23_dat<-read.csv("../data/acanthurus_data.csv")%>%
+  select(-X)
+
+steg_23_dat<-read.csv("../data/stegastes_data.csv")%>%
+  select(-X)
+
+
+str(acan_23_dat)
+str(steg_23_dat)
+
+
+##center data----
+#acanthurus without %c outlier:
+acan_23_dat_no_outlier_c<-
+  acan_23_dat%>%
+     filter(Muscle_C<52)%>%
+  mutate(Muscle_N15_c = base::scale(Muscle_N15, center = TRUE, scale = FALSE),
+         Muscle_N_log = log(Muscle_N),
+          Muscle_C_log = log(Muscle_C),
+         Muscle_CN_log = log(Muscle_CN),
+         Poo_N15_c = base::scale(Poo_N15, center = TRUE, scale = FALSE),
+         Poo_N_log = log(Poo_N),
+         Poo_C_log = log(Poo_C),
+         Poo_CN_log = log(Poo_CN),
+         HSI_log = log(HSI),
+         GSI_log = log(GSI))%>%
+  mutate(TL_cm_c = base::scale(TL_cm, center = TRUE, scale = FALSE),
+         Age_c = base::scale(Age, center = TRUE, scale = FALSE))
+
+#stegastes, without outlier:
+steg_23_dat_no_outlier_c<-
+  steg_23_dat%>%
+   filter(Muscle_N15<14)%>%
+  mutate(Muscle_N15_c = base::scale(Muscle_N15, center = TRUE, scale = FALSE),
+         Muscle_N_log = log(Muscle_N),
+          Muscle_C_log = log(Muscle_C),
+         Muscle_CN_log = log(Muscle_CN),
+         Poo_N15_c = base::scale(Poo_N15, center = TRUE, scale = FALSE),
+         Poo_N_log = log(Poo_N),
+         Poo_C_log = log(Poo_C),
+         Poo_CN_log = log(Poo_CN),
+         HSI_log = log(HSI),
+         GSI_log = log(GSI))%>%
+  mutate(TL_cm_c = base::scale(TL_cm, center = TRUE, scale = FALSE),
+         Age_c = base::scale(Age, center = TRUE, scale = FALSE))
+
+```
+
+
+
+#####---------NUTRIENT MODELS-----------------
+#Acanthurus muscle models
+```{r}
+
+###%N--------
+acan_musc_n_size_mod_add_nest_log <- brm(Muscle_N_log  ~ Muscle_N15_c+TL_cm_c + (1|Motu/Motu_Exposure),
+                data=acan_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/acan_musc_n_size_mod_add_nest_log") 
+print(acan_musc_n_size_mod_add_nest_log)
+
+#check diagnositcs
+plot(acan_musc_n_size_mod_add_nest_log, ask = FALSE)
+pp_check(acan_musc_n_size_mod_add_nest_log)
+#looks pretty good
+
+#quick hypothesis test to see trends:
+hypothesis(acan_musc_n_size_mod_add_nest_log, c("Muscle_N15_c>0", #.87
+                                   "TL_cm_c>0")) #0.39
+
+
+###%C--------
+acan_musc_c_size_mod_add_nest_log  <- brm(Muscle_C_log  ~ Muscle_N15_c+TL_cm_c + (1|Motu/Motu_Exposure),
+                data=acan_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/acan_musc_c_size_mod_add_nest_log") 
+print(acan_musc_c_size_mod_add_nest_log )
+
+#check diagnositcs
+plot(acan_musc_c_size_mod_add_nest_log , ask = FALSE)
+pp_check(acan_musc_c_size_mod_add_nest_log)
+
+#quick hypothesis test to see trends:
+hypothesis(acan_musc_c_size_mod_add_nest_log , c("Muscle_N15_c>0", #0.79
+                                   "TL_cm_c>0")) #.02
+
+
+###C:N---------
+acan_musc_cn_size_mod_add_nest_log  <- brm(Muscle_CN_log  ~ Muscle_N15_c+TL_cm_c + (1|Motu/Motu_Exposure),
+                data=acan_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/acan_musc_cn_size_mod_add_nest_log") 
+print(acan_musc_cn_size_mod_add_nest_log )
+
+#check diagnositcs
+plot(acan_musc_cn_size_mod_add_nest_log , ask = FALSE)
+pp_check(acan_musc_cn_size_mod_add_nest_log )
+
+
+#quick hypothesis test to see trends:
+hypothesis(acan_musc_cn_size_mod_add_nest_log , c("Muscle_N15_c<0", #0.78
+                                   "TL_cm_c>0")) #.00
+
+```
+
+
+#Acanthurus fecal models
+```{r}
+###%N--------
+acan_poo_n_size_mod_add_nest_log <- brm(Poo_N_log  ~ Poo_N15_c+TL_cm_c + (1|Motu/Motu_Exposure),
+                data=acan_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/acan_poo_n_size_mod_add_nest_log") 
+print(acan_poo_n_size_mod_add_nest_log)
+
+#check diagnositcs
+plot(acan_poo_n_size_mod_add_nest_log, ask = FALSE)
+pp_check(acan_poo_n_size_mod_add_nest_log)
+#looks pretty good
+
+#quick hypothesis test to see trends:
+hypothesis(acan_poo_n_size_mod_add_nest_log, c("Poo_N15_c>0", #.95
+                                   "TL_cm_c>0")) #.58
+#identical to motu only model
+
+###%C--------
+acan_poo_c_size_mod_add_nest_log  <- brm(Poo_C_log  ~ Poo_N15_c+TL_cm_c + (1|Motu/Motu_Exposure),
+                data=acan_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/acan_poo_c_size_mod_add_nest_log") 
+print(acan_poo_c_size_mod_add_nest_log )
+
+#check diagnositcs
+plot(acan_poo_c_size_mod_add_nest_log , ask = FALSE)
+pp_check(acan_poo_c_size_mod_add_nest_log )
+
+#quick hypothesis test to see trends:
+hypothesis(acan_poo_c_size_mod_add_nest_log , c("Poo_N15_c>0", #0.69
+                                   "TL_cm_c>0")) #0.64
+
+
+###C:N---------
+acan_poo_cn_size_mod_add_nest_log  <- brm(Poo_CN_log  ~ Poo_N15_c+TL_cm_c + (1|Motu/Motu_Exposure),
+                data=acan_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/acan_poo_cn_size_mod_add_nest_log") 
+print(acan_poo_cn_size_mod_add_nest_log )
+
+#check diagnositcs
+plot(acan_poo_cn_size_mod_add_nest_log , ask = FALSE)
+pp_check(acan_poo_cn_size_mod_add_nest_log)
+
+
+#quick hypothesis test to see trends:
+hypothesis(acan_poo_cn_size_mod_add_nest_log , c("Poo_N15_c<0", #0.97
+                                   "TL_cm_c>0")) #
+
+```
+
+
+#Stegastes muscle models
+```{r}
+
+###%N--------
+steg_musc_n_size_mod_add_nest_log <- brm(Muscle_N_log  ~ Muscle_N15_c+TL_cm_c + (1|Motu/Motu_Exposure),
+                data=steg_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/steg_musc_n_size_mod_add_nest_log") #  divergent trans
+print(steg_musc_n_size_mod_add_nest_log)
+
+#check diagnositcs
+plot(steg_musc_n_size_mod_add_nest_log, ask = FALSE)
+pp_check(steg_musc_n_size_mod_add_nest_log)
+#looks pretty good
+
+#quick hypothesis test to see trends:
+hypothesis(steg_musc_n_size_mod_add_nest_log, c("Muscle_N15_c>0", #.76
+                                   "TL_cm_c>0")) #1.00
+
+###%C--------
+steg_musc_c_size_mod_add_nest_log  <- brm(Muscle_C_log  ~ Muscle_N15_c+TL_cm_c + (1|Motu/Motu_Exposure),
+                data=steg_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/steg_musc_c_size_mod_add_nest_log") #20 divergent
+print(steg_musc_c_size_mod_add_nest_log )
+
+#check diagnositcs
+plot(steg_musc_c_size_mod_add_nest_log , ask = FALSE)
+pp_check(steg_musc_c_size_mod_add_nest_log )
+
+#quick hypothesis test to see trends:
+hypothesis(steg_musc_c_size_mod_add_nest_log , c("Muscle_N15_c>0", #.83
+                                   "TL_cm_c>0")) #.99
+
+
+###C:N---------
+steg_musc_cn_size_mod_add_nest_log  <- brm(Muscle_CN_log  ~ Muscle_N15_c+TL_cm_c + (1|Motu/Motu_Exposure),
+                data=steg_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/steg_musc_cn_size_mod_add_nest_log") #13 divergent
+print(steg_musc_cn_size_mod_add_nest_log )
+
+#check diagnositcs
+plot(steg_musc_cn_size_mod_add_nest_log , ask = FALSE)
+pp_check(steg_musc_cn_size_mod_add_nest_log )
+
+
+#quick hypothesis test to see trends:
+hypothesis(steg_musc_cn_size_mod_add_nest_log , c("Muscle_N15_c<0", #.49
+                                   "TL_cm_c>0")) #.01
+
+```
+
+
+#Stegastes fecal models
+```{r}
+
+###%N--------
+steg_poo_n_size_mod_add_nest_log <- brm(Poo_N_log  ~ Poo_N15_c+TL_cm_c + (1|Motu/Motu_Exposure),
+                data=steg_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/steg_poo_n_size_mod_add_nest_log") 
+print(steg_poo_n_size_mod_add_nest_log)
+
+#check diagnositcs
+plot(steg_poo_n_size_mod_add_nest_log, ask = FALSE)
+pp_check(steg_poo_n_size_mod_add_nest_log)
+#looks pretty good
+
+#quick hypothesis test to see trends:
+hypothesis(steg_poo_n_size_mod_add_nest_log, c("Poo_N15_c>0", #1.00
+                                   "TL_cm_c>0")) #0.49
+
+###%C--------
+steg_poo_c_size_mod_add_nest_log  <- brm(Poo_C_log  ~ Poo_N15_c+TL_cm_c + (1|Motu/Motu_Exposure),
+                data=steg_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/steg_poo_c_size_mod_add_nest_log") 
+print(steg_poo_c_size_mod_add_nest_log )
+
+#check diagnositcs
+plot(steg_poo_c_size_mod_add_nest_log , ask = FALSE)
+pp_check(steg_poo_c_size_mod_add_nest_log )
+
+#quick hypothesis test to see trends:
+hypothesis(steg_poo_c_size_mod_add_nest_log , c("Poo_N15_c>0", #0.99
+                                   "TL_cm_c>0")) #.56
+
+
+###C:N---------
+steg_poo_cn_size_mod_add_nest_log  <- brm(Poo_CN_log  ~ Poo_N15_c+TL_cm_c + (1|Motu/Motu_Exposure),
+                data=steg_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/steg_poo_cn_size_mod_add_nest_log") #4 divergent
+print(steg_poo_cn_size_mod_add_nest_log )
+
+#check diagnositcs
+plot(steg_poo_cn_size_mod_add_nest_log , ask = FALSE)
+pp_check(steg_poo_cn_size_mod_add_nest_log )
+
+
+#quick hypothesis test to see trends:
+hypothesis(steg_poo_cn_size_mod_add_nest_log , c("Poo_N15_c<0", #1.00
+                                   "TL_cm_c>0")) #.6
+
+```
+
+
+#extract some effect sizes------
+```{r}
+
+steg_musc_n_size_mod_add_nest_log%>%
+  spread_draws(b_Muscle_N15_c)%>%
+  median_hdi(exp(b_Muscle_N15_c))
+#1.001894	0.9962852	1.007484	
+
+
+acan_musc_n_size_mod_add_nest_log%>%
+  spread_draws(b_Muscle_N15_c)%>%
+  median_hdi(exp(b_Muscle_N15_c))
+#1.001291	0.9989421	1.003798
+
+
+steg_poo_n_size_mod_add_nest_log%>%
+  spread_draws(b_Poo_N15_c)%>%
+  median_hdi(exp(b_Poo_N15_c))
+#1.209304	1.077434	1.353745	
+
+
+acan_poo_n_size_mod_add_nest_log%>%
+  spread_draws(b_Poo_N15_c)%>%
+  median_hdi(exp(b_Poo_N15_c))
+#1.039781	0.9891189	1.096457	
+
+
+```
+
+
+#####-----------------HSI-------------
+```{r}
+#ACANTHURUS-----
+#Poo-----
+acan_hsi_log_poo_n15_mod_nest <- brm(HSI_log  ~ Poo_N15_c +  (1|Motu/Motu_Exposure),
+                data=acan_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/acan_hsi_log_poo_n15_mod_nest") 
+print(acan_hsi_log_poo_n15_mod_nest)
+
+#check diagnositcs
+plot(acan_hsi_log_poo_n15_mod_nest, ask = FALSE)
+pp_check(acan_hsi_log_poo_n15_mod_nest)
+#looks good enough
+ 
+#quick hypothesis test to see trends:
+hypothesis(acan_hsi_log_poo_n15_mod_nest, c("Poo_N15_c>0")) #0.95
+
+#Muscle-----
+acan_hsi_log_musc_n15_mod_nest <- brm(HSI_log  ~ Muscle_N15_c +  (1|Motu/Motu_Exposure), 
+                data=acan_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/acan_hsi_log_musc_n15_mod_nest") 
+print(acan_hsi_log_musc_n15_mod_nest)
+
+#check diagnositcs
+plot(acan_hsi_log_musc_n15_mod_nest, ask = FALSE)
+pp_check(acan_hsi_log_musc_n15_mod_nest)
+#looks good enough
+ 
+#quick hypothesis test to see trends:
+hypothesis(acan_hsi_log_musc_n15_mod_nest, c("Muscle_N15_c>0")) #0.78
+
+#just check non-log:
+acan_hsi_musc_n15_mod_nest <- brm(HSI  ~ Muscle_N15_c +  (1|Motu/Motu_Exposure), 
+                data=acan_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/acan_hsi_musc_n15_mod_nest") 
+print(acan_hsi_musc_n15_mod_nest)
+
+#check diagnositcs
+plot(acan_hsi_musc_n15_mod_nest, ask = FALSE)
+pp_check(acan_hsi_musc_n15_mod_nest)
+#looks good enough
+ 
+#quick hypothesis test to see trends:
+hypothesis(acan_hsi_musc_n15_mod_nest, c("Muscle_N15_c>0")) #0.8
+#similar to log
+
+
+
+#STEGASTES-----
+
+###Poo--------
+steg_hsi_log_poo_n15_mod_nest <- brm(HSI_log  ~ Poo_N15_c +  (1|Motu/Motu_Exposure), 
+                data=steg_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/steg_hsi_log_poo_n15_mod_nest") 
+print(steg_hsi_log_poo_n15_mod_nest)
+
+#check diagnositcs
+plot(steg_hsi_log_poo_n15_mod_nest, ask = FALSE)
+pp_check(steg_hsi_log_poo_n15_mod_nest)
+#looks good enough
+ 
+#quick hypothesis test to see trends:
+hypothesis(steg_hsi_log_poo_n15_mod_nest, c("Poo_N15_c>0")) #0.97*
+
+###Muscle--------
+steg_hsi_log_musc_n15_mod_nest <- brm(HSI_log  ~ Muscle_N15_c +  (1|Motu/Motu_Exposure), 
+                data=steg_23_dat_no_outlier_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/steg_hsi_log_musc_n15_mod_nest") #worked
+print(steg_hsi_log_musc_n15_mod_nest)
+
+#check diagnositcs
+plot(steg_hsi_log_musc_n15_mod_nest, ask = FALSE)
+pp_check(steg_hsi_log_musc_n15_mod_nest)
+#looks good enough
+ 
+#quick hypothesis test to see trends:
+hypothesis(steg_hsi_log_musc_n15_mod_nest, c("Muscle_N15_c>0")) #0.82
+
+
+
+```
+
+
+
+###--------------GSI------------------------
+###GSI ~ Muscle N15 and Poo N15
+```{r}
+
+##limit to females:
+acan_23_dat_c_female_no_out<-
+    acan_23_dat%>%
+     filter(Muscle_C<52)%>%
+  filter(Sex == "female")%>%
+  mutate(Muscle_N15_c = base::scale(Muscle_N15, center = TRUE, scale = FALSE),
+         Poo_N15_c = base::scale(Poo_N15, center = TRUE, scale = FALSE),
+         GSI_log = log(GSI))
+acan_23_dat_c_female_no_out
+#n = 38 females
+
+
+###log GSI~Muscle---------
+acan_gsi_log_musc_n15_mod_no_out_nest <- brm(GSI_log  ~ Muscle_N15_c + (1|Motu/Motu_Exposure),
+                data=acan_23_dat_c_female_no_out,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/acan_gsi_log_musc_n15_mod_no_out_nest") #1 divergent
+print(acan_gsi_log_musc_n15_mod_no_out_nest)
+
+#check diagnositcs
+plot(acan_gsi_log_musc_n15_mod_no_out_nest, ask = FALSE)
+pp_check(acan_gsi_log_musc_n15_mod_no_out_nest)
+#looks good
+
+#quick hypothesis test to see trends:
+hypothesis(acan_gsi_log_musc_n15_mod_no_out_nest, c("Muscle_N15_c>0")) #0.11 - yup trending negative
+
+
+
+###log GSI~ Poo N15---------
+acan_gsi_log_poo_n15_mod_no_out_nest <- brm(GSI_log  ~ Poo_N15_c + (1|Motu/Motu_Exposure),
+                data=acan_23_dat_c_female_no_out,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/acan_gsi_log_poo_n15_mod_no_out_nest") #1 divergent
+print(acan_gsi_log_poo_n15_mod_no_out_nest)
+
+#check diagnositcs
+plot(acan_gsi_log_poo_n15_mod_no_out_nest, ask = FALSE)
+pp_check(acan_gsi_log_poo_n15_mod_no_out_nest)
+#looks good
+
+#quick hypothesis test to see trends:
+hypothesis(acan_gsi_log_poo_n15_mod_no_out_nest, c("Poo_N15_c>0")) #0.22 - yup trending negative, not quite as strong
+
+
+```
+
+
+###------------GROWTH-----------------
+##-----Acanthurus----
+#Growth model for residuals - no outlier---------
+```{r}
+range(acan_23_dat_no_outlier_c$TL_cm) #12.4 17.6
+range(acan_23_dat_no_outlier_c$Age) #NA - need to remove
+
+acan_23_dat_no_outlier_c_gr<-
+  acan_23_dat_no_outlier_c%>%
+  filter(!is.na(Age))%>%
+  mutate(llength = log(TL_cm))
+
+range(acan_23_dat_no_outlier_c_gr$Age) #1-16
+
+###set prior
+gr_prior_acan<- c(
+  prior(uniform(15,27), nlpar = "Linf", lb = 15, ub = 27), #must be greater than min, and can be greater than max observed (but not greater than species max, which = Max length : 27.0 cm TL male/unsexed; (Ref. 3145); common length : 17.0 cm TL male/unsexed; (Ref. 9267) from fish base
+  prior(uniform(0,2), nlpar = "K", lb=0, ub = 2), ###don't constrain really
+  prior(uniform(0.01, 12), nlpar = "L0", lb = 0.01, ub = 12) ###L0 constrained to approx min length observed but must be >0 so don't get log(0) in model
+)
+
+
+acan_growth_mod_no_out <- 
+  brm(
+    bf(
+      llength ~ log(Linf-(Linf-L0)*exp(-K*Age)),
+      Linf~1, K~1, L0~1,
+      nl=TRUE),
+    data = acan_23_dat_no_outlier_c_gr, family = gaussian,
+    prior = gr_prior_acan,
+     iter = 3000, warmup = 1000, chains = 4, cores = 4, 
+    control = list(adapt_delta = 0.999, max_treedepth=15), 
+    sample_prior=TRUE,
+     file = "../outputs/brms/acan_growth_mod_no_out"
+  )
+
+print(acan_growth_mod_no_out) ##0 divergent trans
+pp_check(acan_growth_mod_no_out) #looks good
+
+#               Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+#Linf_Intercept    16.62      0.67    15.69    18.22 1.00     2284     2950
+#K_Intercept        0.34      0.14     0.15     0.70 1.00     2031     2626
+#L0_Intercept      10.62      1.27     7.17    11.94 1.00     2155     2744
+
+
+#extract residuals and combine with data----
+acan_brms_resid_no_out<-as.data.frame(resid(acan_growth_mod_no_out))
+acan_brms_resid_no_out
+
+acan_23_dat_no_outlier_c_gr_resid<-
+  cbind(acan_23_dat_no_outlier_c_gr, acan_brms_resid_no_out)%>%
+  rename(Growth_residuals = Estimate,
+         Growth_res_est_error = Est.Error,
+         Growth_resid_q2.5 = Q2.5,
+         Growth_resid_q97.5 = Q97.5)%>%
+  #redo center and scaling because had to eliminate NAs:
+  mutate(TL_cm_c = base::scale(TL_cm, center = TRUE, scale = FALSE),
+         Muscle_N15_c = base::scale(Muscle_N15, center = TRUE, scale = FALSE),
+         Poo_N15_c = base::scale(Poo_N15, center = TRUE, scale = FALSE))
+
+acan_23_dat_no_outlier_c_gr_resid
+
+```
+
+
+###now run model with growth residuals as response - NO OUTLIER------
+```{r}
+#can't log, because negative values for residuals.
+#with size, motu_exposure (see old file for all the other iterations)----
+
+#additive models for size:-----
+acan_growth_musc_n15_mod_nest_size_no_out <- brm(Growth_residuals  ~ Muscle_N15_c+TL_cm_c + (1|Motu/Motu_Exposure),
+                data=acan_23_dat_no_outlier_c_gr_resid,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/acan_growth_musc_n15_mod_nest_size_no_out") #7 divergent trans
+print(acan_growth_musc_n15_mod_nest_size_no_out)
+
+#check diagnositcs
+plot(acan_growth_musc_n15_mod_nest_size_no_out, ask = FALSE)
+pp_check(acan_growth_musc_n15_mod_nest_size_no_out)
+#looks good
+
+#quick hypothesis test to see trends:
+hypothesis(acan_growth_musc_n15_mod_nest_size_no_out, c("Muscle_N15_c>0", #.96***
+                                                            "TL_cm_c>0")) #1***
+
+
+acan_growth_poo_n15_mod_nest_size_no_out <- brm(Growth_residuals  ~ Poo_N15_c+TL_cm_c + (1|Motu/Motu_Exposure),
+                data=acan_23_dat_no_outlier_c_gr_resid,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/acan_growth_poo_n15_mod_nest_size_no_out") #34 divergent trans
+print(acan_growth_poo_n15_mod_nest_size_no_out)
+
+#check diagnositcs
+plot(acan_growth_poo_n15_mod_nest_size_no_out, ask = FALSE)
+pp_check(acan_growth_poo_n15_mod_nest_size_no_out)
+#looks good
+
+#quick hypothesis test to see trends:
+hypothesis(acan_growth_poo_n15_mod_nest_size_no_out, c("Poo_N15_c>0", #.98***
+                                                            "TL_cm_c>0")) #1***
+```
+
+
+###STEGASTES---------
+
+#Growth model for residuals---------
+```{r}
+
+#data without outlier: 
+steg_23_dat_no_outlier_c
+
+
+range(steg_23_dat_no_outlier_c$TL_cm) #7-15
+range(steg_23_dat_no_outlier_c$Age) #1-13
+
+
+steg_23_dat_no_out_c_gr<-
+  steg_23_dat_no_outlier_c%>%
+  mutate(llength = log(TL_cm))
+
+###set prior
+gr_prior_steg<- c(
+  prior(uniform(8, 17), nlpar = "Linf", lb = 8, ub = 17), #must be greater than min, and can be greater than max observed (but not greater than species max, which = Max length : 16.5 cm NG male/unsexed; (Ref. 89467) from FishBase)
+  prior(uniform(0,2), nlpar = "K", lb=0, ub = 2), ###don't constrain really
+  prior(uniform(0.01, 7), nlpar = "L0", lb = 0.01, ub = 7) ###L0 constrained to approx min length observed but must be >0 so don't get log(0) in model
+)
+
+
+steg_growth_mod_no_out <- 
+  brm(
+    bf(
+      llength ~ log(Linf-(Linf-L0)*exp(-K*Age)),
+      Linf~1, K~1, L0~1,
+      nl=TRUE),
+    data = steg_23_dat_no_out_c_gr, family = gaussian,
+    prior = gr_prior_steg,
+     iter = 3000, warmup = 1000, chains = 4, cores = 4, 
+    control = list(adapt_delta = 0.999, max_treedepth=15), 
+    sample_prior=TRUE,
+     file = "../outputs/brms/steg_growth_mod_no_out"
+  )
+print(steg_growth_mod_no_out) ##0 divergent trans
+pp_check(steg_growth_mod_no_out) #looks good
+
+#               Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+#Linf_Intercept    14.22      0.85    12.73    16.13 1.00     2221     1944
+#K_Intercept        0.37      0.11     0.20     0.64 1.00     2029     2278
+#L0_Intercept       4.62      1.24     1.72     6.60 1.00     2496     2445
+
+
+
+#extract residuals and combine with data----
+steg_brms_resid_no_out<-as.data.frame(resid(steg_growth_mod_no_out))
+steg_brms_resid_no_out
+
+steg_23_dat_c_gr_resid_no_out<-
+  cbind(steg_23_dat_no_out_c_gr, steg_brms_resid_no_out)%>%
+  rename(Growth_residuals = Estimate,
+         Growth_res_est_error = Est.Error,
+         Growth_resid_q2.5 = Q2.5,
+         Growth_resid_q97.5 = Q97.5)%>%
+  mutate(TL_cm_c = base::scale(TL_cm, center = TRUE, scale = FALSE))
+#don't need to re-center because didn't delete any points
+
+steg_23_dat_c_gr_resid_no_out
+
+
+```
+
+
+```{r}
+
+###now run model with growth residuals as response------
+steg_growth_poo_n15_mod_nest_size <- brm(Growth_residuals  ~ Poo_N15_c + TL_cm_c +  (1|Motu/Motu_Exposure),
+                data=steg_23_dat_c_gr_resid_no_out,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/steg_growth_poo_n15_mod_nest_size") #5 divergent trans
+print(steg_growth_poo_n15_mod_nest_size)
+
+
+#check diagnositcs
+plot(steg_growth_poo_n15_mod_nest_size, ask = FALSE)
+pp_check(steg_growth_poo_n15_mod_nest_size)
+#looks good
+
+#quick hypothesis test to see trends:
+hypothesis(steg_growth_poo_n15_mod_nest_size, c("Poo_N15_c>0")) #0.39 - so really no effect on growth
+
+#now with muscle n15
+steg_growth_musc_n15_mod_nest_size <- brm(Growth_residuals  ~ Muscle_N15_c + TL_cm_c +  (1||Motu/Motu_Exposure),
+                data=steg_23_dat_c_gr_resid_no_out,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/steg_growth_musc_n15_mod_nest_size") #42 divergent trans
+print(steg_growth_musc_n15_mod_nest_size)
+
+
+#check diagnositcs
+plot(steg_growth_musc_n15_mod_nest_size, ask = FALSE)
+pp_check(steg_growth_musc_n15_mod_nest_size)
+#looks good
+
+#quick hypothesis test to see trends:
+hypothesis(steg_growth_musc_n15_mod_nest_size, c("Muscle_N15_c>0")) #0.24 - so really no effect on growth, if anything trending NEGATIVE
+
+```
+####---------------STORAGE (MUSCLE) EFFECT SIZES-------------
+```{r}
+steg_musc_n_size_mod_add_nest_log%>%
+  
+```
+
+
+####---------------STORAGE (MUSCLE) FIGURES-------------
+```{r}
+
+##plots:-
+#----Muscle %N--------
+steg_musc_n_me<-conditional_effects(steg_musc_n_size_mod_add_nest_log, effects = "Muscle_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+steg_musc_n_me
+
+mean(steg_23_dat_no_outlier_c$Muscle_N15) #10.50792
+
+steg_musc_n_me_unscale<-
+  steg_musc_n_me%>%
+  mutate(Muscle_N15 = Muscle_N15_c +10.50792)%>%
+  mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+acan_musc_n_me<-conditional_effects(acan_musc_n_size_mod_add_nest_log, effects = "Muscle_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+acan_musc_n_me
+
+mean(acan_23_dat_no_outlier_c$Muscle_N15) #10.45675
+
+acan_musc_n_me_unscale<-
+  acan_musc_n_me%>%
+  mutate(Muscle_N15 = Muscle_N15_c +10.45675)%>%
+    mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+
+
+colors <- c("Damselfish" = "#117733", "Surgeonfish" = "#44AA99")
+shape<-c("Damselfish" = 19, "Surgeonfish" = 17)
+
+musc_n_plot<-
+steg_23_dat_no_outlier_c%>%
+  ggplot(aes(x = Muscle_N15, y = Muscle_N))+
+   geom_ribbon(data = steg_musc_n_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#117733")+
+   geom_line(data = steg_musc_n_me_unscale, aes(y = exp_est), color = "#117733", alpha = .9, lwd = 1) +
+     geom_ribbon(data = acan_musc_n_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .1, fill = "#44AA99")+
+   geom_line(data = acan_musc_n_me_unscale, aes(y = exp_est), color = "#44AA99", alpha = .9, lwd = 1) +
+  geom_point(data = acan_23_dat_no_outlier_c, aes(pch = "Surgeonfish", color = "Surgeonfish"), size = 2)+
+  geom_point(aes(pch = "Damselfish", color = "Damselfish"), size = 2)+
+  scale_color_manual(values = colors, name = "")+
+    scale_shape_manual(values = shape, name = "")+
+    xlab(expression(Muscle~italic(delta)^15*N)) +
+      ylab("Muscle %N") +
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size = 12), 
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+            legend.background = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(.8, .2))
+musc_n_plot
+
+
+#----Muscle %C--------
+steg_musc_c_me<-conditional_effects(steg_musc_c_size_mod_add_nest_log, effects = "Muscle_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+steg_musc_c_me
+
+
+steg_musc_c_me_unscale<-
+  steg_musc_c_me%>%
+  mutate(Muscle_N15 = Muscle_N15_c +10.50792)%>%
+  mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+#steg_musc_c_part<-partialize(steg_musc_c_size_mod_add_nest_log, vars = "Muscle_N15_c", data = steg_23_dat_no_outlier_c)
+
+
+acan_musc_c_me<-conditional_effects(acan_musc_c_size_mod_add_nest_log, effects = "Muscle_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+acan_musc_c_me
+
+
+acan_musc_c_me_unscale<-
+  acan_musc_c_me%>%
+  mutate(Muscle_N15 = Muscle_N15_c +10.45675)%>%
+    mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+musc_c_plot<-
+steg_23_dat_no_outlier_c%>%
+  ggplot(aes(x = Muscle_N15, y = Muscle_C))+
+   geom_ribbon(data = steg_musc_c_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#117733")+
+   geom_line(data = steg_musc_c_me_unscale, aes(y = exp_est), color = "#117733", alpha = .9, lwd = 1) +
+     geom_ribbon(data = acan_musc_c_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#44AA99")+
+   geom_line(data = acan_musc_c_me_unscale, aes(y = exp_est), color = "#44AA99", alpha = .9, lwd = 1) +
+  geom_point(data = acan_23_dat_no_outlier_c, aes(pch = "Surgeonfish", color = "Surgeonfish"), size = 2)+
+  geom_point(aes(pch = "Damselfish", color = "Damselfish"), size = 2)+
+  scale_color_manual(values = colors, name = "")+
+    scale_shape_manual(values = shape, name = "")+
+    xlab(expression(Muscle~italic(delta)^15*N)) +
+      ylab("Muscle %C") +
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size = 12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+            legend.background = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(.8, .2))
+musc_c_plot
+
+
+
+#----Muscle C:N--------
+steg_musc_cn_me<-conditional_effects(steg_musc_cn_size_mod_add_nest_log, effects = "Muscle_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+steg_musc_cn_me
+
+
+steg_musc_cn_me_unscale<-
+  steg_musc_cn_me%>%
+  mutate(Muscle_N15 = Muscle_N15_c +10.50792)%>%
+  mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+acan_musc_cn_me<-conditional_effects(acan_musc_cn_size_mod_add_nest_log, effects = "Muscle_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+acan_musc_cn_me
+
+
+acan_musc_cn_me_unscale<-
+  acan_musc_cn_me%>%
+  mutate(Muscle_N15 = Muscle_N15_c +10.45675)%>%
+    mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+musc_cn_plot<-
+steg_23_dat_no_outlier_c%>%
+  ggplot(aes(x = Muscle_N15, y = Muscle_CN))+
+   geom_ribbon(data = steg_musc_cn_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#117733")+
+   geom_line(data = steg_musc_cn_me_unscale, aes(y = exp_est), color = "#117733", alpha = .9, lwd = 1) +
+     geom_ribbon(data = acan_musc_cn_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#44AA99")+
+   geom_line(data = acan_musc_cn_me_unscale, aes(y = exp_est), color = "#44AA99", alpha = .9, lwd = 1) +
+  geom_point(data = acan_23_dat_no_outlier_c, aes(pch = "Surgeonfish", color = "Surgeonfish"), size = 2)+
+  geom_point(aes(pch = "Damselfish", color = "Damselfish"), size = 2)+
+  scale_color_manual(values = colors, name = "")+
+    scale_shape_manual(values = shape, name = "")+
+    xlab(expression(Muscle~italic(delta)^15*N)) +
+      ylab("Muscle C:N") +
+  scale_y_continuous(breaks = c(3.13, 3.16, 3.19, 3.22))+
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size = 12),
+     panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+         legend.background = element_blank(),
+        legend.title = element_blank(),
+        legend.position = c(.8, .8))
+musc_cn_plot
+
+```
+
+
+###------------SUPPLY (FECAL) FIGURES--------------
+```{r}
+##plots:-
+#----Poo %N--------
+steg_poo_n_me<-conditional_effects(steg_poo_n_size_mod_add_nest_log, effects = "Poo_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+steg_poo_n_me
+
+mean(steg_23_dat_no_outlier_c$Poo_N15) #8.1775
+
+
+steg_poo_n_me_unscale<-
+  steg_poo_n_me%>%
+  mutate(Poo_N15 = Poo_N15_c +8.1775)%>%
+  mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+acan_poo_n_me<-conditional_effects(acan_poo_n_size_mod_add_nest_log, effects = "Poo_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+acan_poo_n_me
+
+mean(acan_23_dat_no_outlier_c$Poo_N15) #8.49925
+
+acan_poo_n_me_unscale<-
+  acan_poo_n_me%>%
+  mutate(Poo_N15 = Poo_N15_c +8.49925)%>%
+    mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+
+poo_colors <- c("Damselfish" = "#332288", "Surgeonfish" = "#88CCEE")
+shape<-c("Damselfish" = 19, "Surgeonfish" = 17)
+
+
+poo_n_plot<-
+steg_23_dat_no_outlier_c%>%
+  ggplot(aes(x = Poo_N15, y = Poo_N))+
+   geom_ribbon(data = steg_poo_n_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#332288")+
+   geom_line(data = steg_poo_n_me_unscale, aes(y = exp_est), color = "#332288", alpha = .9, lwd = 1) +
+     geom_ribbon(data = acan_poo_n_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#88CCEE")+
+   geom_line(data = acan_poo_n_me_unscale, aes(y = exp_est), color = "#88CCEE", alpha = .9, lwd = 1) +
+  geom_point(data = acan_23_dat_no_outlier_c, aes(pch = "Surgeonfish", color = "Surgeonfish"), size = 2)+
+  geom_point(aes(pch = "Damselfish", color = "Damselfish"), size = 2)+
+  scale_color_manual(values = poo_colors, name = "")+
+    scale_shape_manual(values = shape, name = "")+
+    xlab(expression(Fecal~italic(delta)^15*N)) +
+      ylab("Fecal %N") +
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size = 12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+            legend.background = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(.8, .2))
+poo_n_plot
+
+
+#----Poo %C--------
+steg_poo_c_me<-conditional_effects(steg_poo_c_size_mod_add_nest_log, effects = "Poo_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+steg_poo_c_me
+
+
+steg_poo_c_me_unscale<-
+  steg_poo_c_me%>%
+  mutate(Poo_N15 = Poo_N15_c +8.1775)%>%
+  mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+
+acan_poo_c_me<-conditional_effects(acan_poo_c_size_mod_add_nest_log, effects = "Poo_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+acan_poo_c_me
+
+
+acan_poo_c_me_unscale<-
+  acan_poo_c_me%>%
+  mutate(Poo_N15 = Poo_N15_c +8.49925)%>%
+    mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+poo_c_plot<-
+steg_23_dat_no_outlier_c%>%
+  ggplot(aes(x = Poo_N15, y = Poo_C))+
+   geom_ribbon(data = steg_poo_c_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#332288")+
+   geom_line(data = steg_poo_c_me_unscale, aes(y = exp_est), color = "#332288", alpha = .9, lwd = 1) +
+     geom_ribbon(data = acan_poo_c_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#88CCEE")+
+   geom_line(data = acan_poo_c_me_unscale, aes(y = exp_est), color = "#88CCEE", alpha = .9, lwd = 1) +
+  geom_point(data = acan_23_dat_no_outlier_c, aes(pch = "Surgeonfish", color = "Surgeonfish"), size =2)+
+  geom_point(aes(pch = "Damselfish", color = "Damselfish"), size = 2)+
+  scale_color_manual(values = poo_colors, name = "")+
+    scale_shape_manual(values = shape, name = "")+
+    xlab(expression(Fecal~italic(delta)^15*N)) +
+      ylab("Fecal %C") +
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size = 12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+            legend.background = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(.8, .2))
+poo_c_plot
+
+
+
+#----Poo C:N--------
+steg_poo_cn_me<-conditional_effects(steg_poo_cn_size_mod_add_nest_log, effects = "Poo_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+steg_poo_cn_me
+
+
+steg_poo_cn_me_unscale<-
+  steg_poo_cn_me%>%
+  mutate(Poo_N15 = Poo_N15_c +8.1775)%>%
+  mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+
+acan_poo_cn_me<-conditional_effects(acan_poo_cn_size_mod_add_nest_log, effects = "Poo_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+acan_poo_cn_me
+
+
+acan_poo_cn_me_unscale<-
+  acan_poo_cn_me%>%
+  mutate(Poo_N15 = Poo_N15_c +8.49925)%>%
+    mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+poo_cn_plot<-
+steg_23_dat_no_outlier_c%>%
+  ggplot(aes(x = Poo_N15, y = Poo_CN))+
+   geom_ribbon(data = steg_poo_cn_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#332288")+
+   geom_line(data = steg_poo_cn_me_unscale, aes(y = exp_est), color = "#332288", alpha = .9, lwd = 1) +
+     geom_ribbon(data = acan_poo_cn_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#88CCEE")+
+   geom_line(data = acan_poo_cn_me_unscale, aes(y = exp_est), color = "#88CCEE", alpha = .9, lwd = 1) +
+  geom_point(data = acan_23_dat_no_outlier_c, aes(pch = "Surgeonfish", color = "Surgeonfish"), size = 2)+
+  geom_point(aes(pch = "Damselfish", color = "Damselfish"), size = 2)+
+  scale_color_manual(values = poo_colors, name = "")+
+    scale_shape_manual(values = shape, name = "")+
+    xlab(expression(Fecal~italic(delta)^15*N)) +
+      ylab("Fecal C:N") +
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size = 12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),  
+        legend.background = element_blank(),
+        legend.title = element_blank(),
+        legend.position = c(.8, .8))
+poo_cn_plot
+
+```
+
+
+
+#--------Plot posterior predictions: storage, supply------------
+```{r}
+#plot stegastes and acanthurus together------
+colors <- c("Damselfish" = "#117733", "Surgeonfish" = "#44AA99")
+poo_colors <- c("Damselfish" = "#332288", "Surgeonfish" = "#88CCEE")
+
+
+#exponentiate:-----
+storage_posterior_plot_exp<-
+ggplot() +
+   geom_vline(xintercept=1, lty=2, alpha = .5)+
+  
+###Posterior densities for stegastes:   
+  stat_halfeye(data = as_draws_df(steg_musc_n_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 3.3, fill = "Damselfish", color = "Damselfish"), point_interval = NULL, slab_alpha = .3) + 
+   stat_halfeye(data = as_draws_df(steg_musc_c_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 2.2, fill = "Damselfish", color = "Damselfish"), point_interval = NULL,  slab_alpha = .3) + 
+  stat_halfeye(data = as_draws_df(steg_musc_cn_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 1.1, fill = "Damselfish", color = "Damselfish"),   point_interval = NULL,   slab_alpha = .3 ) + 
+  
+##posterior densites for Atri:
+  stat_halfeye(data = as_draws_df(acan_musc_n_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 3.2, fill = "Surgeonfish", color = "Surgeonfish"),   point_interval = NULL,  slab_alpha = .3) + 
+   stat_halfeye(data = as_draws_df(acan_musc_c_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 2.1, fill = "Surgeonfish", color = "Surgeonfish"), point_interval = NULL,  slab_alpha = .3) + 
+     stat_halfeye(data = as_draws_df(acan_musc_cn_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 1, fill = "Surgeonfish", color = "Surgeonfish"), point_interval = NULL,  slab_alpha = .3) + 
+
+##re-set color scale because outline is throwing off the legend:  
+    scale_fill_manual(values = colors, name = "")+
+    scale_color_manual(values = colors, name = "")+
+    new_scale_color()+
+   new_scale_fill()+
+  
+###Posterior densities for stegastes - OUTLINES:   
+  stat_halfeye(data = as_draws_df(steg_musc_n_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 3.3), point_interval = NULL, slab_fill = NA, outline_bars = TRUE, slab_color = "#117733",   slab_linewidth = .5 ) + 
+   stat_halfeye(data = as_draws_df(steg_musc_c_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 2.2), point_interval = NULL,   slab_fill = NA, outline_bars = TRUE, slab_color = "#117733" ,   slab_linewidth = .5) + 
+  stat_halfeye(data = as_draws_df(steg_musc_cn_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 1.1),   point_interval = NULL,    slab_fill = NA, outline_bars = TRUE, slab_color = "#117733" ,   slab_linewidth = .5) + 
+  
+  
+##posterior densites for Atri OUTLINES:
+  stat_halfeye(data = as_draws_df(acan_musc_n_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 3.2),   point_interval = NULL,   slab_fill = NA, outline_bars = TRUE, slab_color = "#44AA99",   slab_linewidth = .5 ) + 
+   stat_halfeye(data = as_draws_df(acan_musc_c_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 2.1), point_interval = NULL,  slab_fill = NA, outline_bars = TRUE, slab_color = "#44AA99",   slab_linewidth = .5 ) + 
+     stat_halfeye(data = as_draws_df(acan_musc_cn_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 1), point_interval = NULL,   slab_fill = NA, outline_bars = TRUE, slab_color = "#44AA99" ,   slab_linewidth = .5) + 
+  
+##intervals for Atri:
+  stat_halfeye(data = as_draws_df(acan_musc_n_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 3.2, fill = "Surgeonfish", color = "Surgeonfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = .0, pch= 17 ) + 
+   stat_halfeye(data = as_draws_df(acan_musc_c_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 2.1, fill = "Surgeonfish", color = "Surgeonfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = .0, pch= 17) + 
+     stat_halfeye(data = as_draws_df(acan_musc_cn_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 1, fill = "Surgeonfish", color = "Surgeonfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = 0, pch= 17 ) + 
+  
+###intervals for stegastes:   
+  stat_halfeye(data = as_draws_df(steg_musc_n_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 3.3, fill = "Damselfish", color = "Damselfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = 0) + 
+   stat_halfeye(data = as_draws_df(steg_musc_c_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 2.2, fill = "Damselfish", color = "Damselfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = 0 ) + 
+  stat_halfeye(data = as_draws_df(steg_musc_cn_size_mod_add_nest_log), aes(x = exp(b_Muscle_N15_c),  y = 1.1, fill = "Damselfish", color = "Damselfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = 0 ) + 
+  
+#now set formatting:
+       scale_fill_manual(values = colors, name = "", guide = "none")+
+  scale_color_manual(values = colors, name = "", guide = "none")+
+  
+  scale_y_continuous(labels = c("%N", "%C", "C:N"), breaks = c(3.2,2.1,1))+
+    scale_x_continuous(breaks =c(0.99, 1.00, 1.01))+
+
+  ylab("")+
+#  xlab(expression(Posterior~effect~of~poole~italic(delta)^15*N)) +
+ xlab("Multiplicative effect on nutrient storage")+
+ theme_bw() +
+   theme(element_text(size = 12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+            legend.background = element_blank(),
+        legend.title = element_blank(),
+        legend.position = c(.8, .22))
+ storage_posterior_plot_exp 
+  
+
+supply_posterior_plot_exp<-
+ggplot() +
+   geom_vline(xintercept=1, lty=2, alpha = .5)+
+  
+###Posterior densities for stegastes:   
+  stat_halfeye(data = as_draws_df(steg_poo_n_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 3.3, fill = "Damselfish", color = "Damselfish"), point_interval = NULL, slab_alpha = .3) + 
+   stat_halfeye(data = as_draws_df(steg_poo_c_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 2.2, fill = "Damselfish", color = "Damselfish"), point_interval = NULL,  slab_alpha = .3 ) + 
+  stat_halfeye(data = as_draws_df(steg_poo_cn_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 1.1, fill = "Damselfish", color = "Damselfish"),   point_interval = NULL,   slab_alpha = .3 ) + 
+  
+##posterior densites for Atri:
+  stat_halfeye(data = as_draws_df(acan_poo_n_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 3.2, fill = "Surgeonfish", color = "Surgeonfish"),   point_interval = NULL,  slab_alpha = .5) + 
+   stat_halfeye(data = as_draws_df(acan_poo_c_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 2.1, fill = "Surgeonfish", color = "Surgeonfish"), point_interval = NULL,  slab_alpha = .5) + 
+     stat_halfeye(data = as_draws_df(acan_poo_cn_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 1, fill = "Surgeonfish", color = "Surgeonfish"), point_interval = NULL,  slab_alpha = .5) + 
+
+##re-set color scale because outline is throwing off the legend:  
+    scale_fill_manual(values = poo_colors, name = "")+
+    scale_color_manual(values = poo_colors, name = "")+
+    new_scale_color()+
+   new_scale_fill()+
+  
+###Posterior densities for stegastes - OUTLINES:   
+  stat_halfeye(data = as_draws_df(steg_poo_n_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 3.3), point_interval = NULL, slab_fill = NA, outline_bars = TRUE, slab_color = "#332288",   slab_linewidth = .5 ) + 
+   stat_halfeye(data = as_draws_df(steg_poo_c_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 2.2), point_interval = NULL,   slab_fill = NA, outline_bars = TRUE, slab_color = "#332288" ,   slab_linewidth = .5) + 
+  stat_halfeye(data = as_draws_df(steg_poo_cn_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 1.1),   point_interval = NULL,    slab_fill = NA, outline_bars = TRUE, slab_color = "#332288" ,   slab_linewidth = .5) + 
+  
+  
+##posterior densites for Atri OUTLINES:
+  stat_halfeye(data = as_draws_df(acan_poo_n_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 3.2),   point_interval = NULL,   slab_fill = NA, outline_bars = TRUE, slab_color = "#88CCEE",   slab_linewidth = .5 ) + 
+   stat_halfeye(data = as_draws_df(acan_poo_c_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 2.1), point_interval = NULL,  slab_fill = NA, outline_bars = TRUE, slab_color = "#88CCEE",   slab_linewidth = .5 ) + 
+     stat_halfeye(data = as_draws_df(acan_poo_cn_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 1), point_interval = NULL,   slab_fill = NA, outline_bars = TRUE, slab_color = "#88CCEE" ,   slab_linewidth = .5) + 
+  
+##intervals for Atri:
+  stat_halfeye(data = as_draws_df(acan_poo_n_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 3.2, fill = "Surgeonfish", color = "Surgeonfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = .0 , pch= 17) + 
+   stat_halfeye(data = as_draws_df(acan_poo_c_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 2.1, fill = "Surgeonfish", color = "Surgeonfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = .0, pch= 17) + 
+     stat_halfeye(data = as_draws_df(acan_poo_cn_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 1, fill = "Surgeonfish", color = "Surgeonfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = 0 , pch= 17) + 
+  
+###intervals for stegastes:   
+  stat_halfeye(data = as_draws_df(steg_poo_n_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 3.3, fill = "Damselfish", color = "Damselfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = 0) + 
+   stat_halfeye(data = as_draws_df(steg_poo_c_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 2.2, fill = "Damselfish", color = "Damselfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = 0 ) + 
+  stat_halfeye(data = as_draws_df(steg_poo_cn_size_mod_add_nest_log), aes(x = exp(b_Poo_N15_c),  y = 1.1, fill = "Damselfish", color = "Damselfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = 0 ) + 
+  
+#now set formatting:
+       scale_fill_manual(values = poo_colors, name = "", guide = "none")+
+  scale_color_manual(values = poo_colors, name = "", guide = "none")+
+  
+  scale_y_continuous(labels = c("%N", "%C", "C:N"), breaks = c(3.2,2.1,1))+
+  ylab("")+
+#  xlab(expression(Posterior~effect~of~poole~italic(delta)^15*N)) +
+ xlab("Multiplicative effect on nutrient release")+
+ theme_bw() +
+   theme(element_text(size = 12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+        legend.background = element_blank(),
+        legend.title = element_blank(),
+        legend.position = c(.8, .2))
+  
+supply_posterior_plot_exp
+ 
+ 
+```
+
+
+#combine all storage/supply plots and save------
+```{r}
+
+supply_storage_plots_no_out_all_exp<-plot_grid(musc_n_plot,poo_n_plot, musc_c_plot, poo_c_plot, musc_cn_plot, poo_cn_plot,
+                                           storage_posterior_plot_exp, supply_posterior_plot_exp,
+                                       ncol = 2, labels = c("(a)", "(e)", "(b)", "(f)", "(c)", "(g)", "(d)", "(h)"), label_fontface = "plain", label_x = .15, label_y = 0.98, align = "hv")
+supply_storage_plots_no_out_all_exp
+
+
+ggsave(plot = supply_storage_plots_no_out_all_exp, filename = "../outputs/figures/figure2.tif", 
+       width  = 1961, height = 2941, units = "px")
+
+
+
+```
+
+
+
+###DEMOGRAPHIC EFFECT SIZES------------
+```{r}
+#STEGASTES HSI--------
+steg_hsi_log_musc_n15_mod_nest%>%
+  spread_draws(b_Muscle_N15_c)%>%
+  median_hdi(exp(b_Muscle_N15_c))
+
+hypothesis(steg_hsi_log_musc_n15_mod_nest, "Muscle_N15_c>0") #
+
+
+steg_hsi_log_poo_n15_mod_nest%>%
+  spread_draws(b_Poo_N15_c)%>%
+  median_hdi(exp(b_Poo_N15_c))
+#1.206968	0.9715269	1.452537
+
+hypothesis(steg_hsi_log_poo_n15_mod_nest, "Poo_N15_c>0") #0.98
+
+#ACANTHURUS HSI--------
+acan_hsi_log_musc_n15_mod_nest%>%
+  spread_draws(b_Muscle_N15_c)%>%
+  median_hdi(exp(b_Muscle_N15_c))
+#1.028762	0.9556373	1.102357	
+
+hypothesis(acan_hsi_log_musc_n15_mod_nest, "Muscle_N15_c>0") #0.78
+
+
+acan_hsi_log_poo_n15_mod_nest%>%
+  spread_draws(b_Poo_N15_c)%>%
+  median_hdi(exp(b_Poo_N15_c))
+#1.057119	0.9861122	1.135383	
+
+hypothesis(acan_hsi_log_poo_n15_mod_nest, "Poo_N15_c>0") #0.95
+
+
+#ACANTHURUS GSI--------
+acan_gsi_log_musc_n15_mod_no_out_nest%>%
+  spread_draws(b_Muscle_N15_c)%>%
+  median_hdi(exp(b_Muscle_N15_c))
+#0.9449377	0.8598975	1.036933
+
+
+acan_gsi_log_musc_n15_mod_no_out_nest%>%
+  spread_draws(b_Muscle_N15_c)%>%
+  median_hdi(1-exp(b_Muscle_N15_c))
+#0.05506235	-0.03693348	0.1401025	
+
+hypothesis(acan_gsi_log_musc_n15_mod_no_out_nest, "Muscle_N15_c>0") #.11
+
+
+acan_gsi_log_poo_n15_mod_no_out_nest%>%
+  spread_draws(b_Poo_N15_c)%>%
+  median_hdi(exp(b_Poo_N15_c))
+#0.9632015	0.873542	1.064176	
+
+
+acan_gsi_log_poo_n15_mod_no_out_nest%>%
+  spread_draws(b_Poo_N15_c)%>%
+  median_hdi(1-exp(b_Poo_N15_c))
+#0.03679846	-0.06417608	0.126458	
+
+hypothesis(acan_gsi_log_poo_n15_mod_no_out_nest, "Poo_N15_c>0") #0.22
+
+
+#ACANTHURUS GROWTH--------
+acan_growth_poo_n15_mod_nest_size_no_out%>%
+  spread_draws(b_Poo_N15_c)%>%
+  median_hdi(b_Poo_N15_c)
+#0.008108807	-7.707787e-05	0.01607976	
+
+#but values are meaningless becuase residuals
+
+hypothesis(acan_growth_poo_n15_mod_nest_size_no_out, "Poo_N15_c>0") #0.98
+
+
+acan_growth_musc_n15_mod_nest_size_no_out%>%
+  spread_draws(b_Muscle_N15_c)%>%
+  median_hdi(b_Muscle_N15_c)
+#0.00709615	-0.001127722	0.01516436	
+
+hypothesis(acan_growth_musc_n15_mod_nest_size_no_out, "Muscle_N15_c>0") #0.96
+
+
+#STEGASTES GROWTH--------
+steg_growth_poo_n15_mod_nest_size%>%
+  spread_draws(b_Poo_N15_c)%>%
+  median_hdi(b_Poo_N15_c)
+#-0.006394889	-0.05166144	0.04049238	
+
+hypothesis(steg_growth_poo_n15_mod_nest_size, "Poo_N15_c>0") #0.39
+
+
+steg_growth_musc_n15_mod_nest_size%>%
+  spread_draws(b_Muscle_N15_c)%>%
+  median_hdi(b_Muscle_N15_c)
+#-0.02045584	-0.08647995	0.03972483	
+
+hypothesis(steg_growth_musc_n15_mod_nest_size, "Muscle_N15_c>0") #0.24
+
+
+```
+
+
+##PLOT AND COMBINE DEMOGRPAHIC RESULTS - FECAL N15:-------
+```{r}
+
+#----HSI--------
+steg_hsi_poo_me<-conditional_effects(steg_hsi_log_poo_n15_mod_nest, effects = "Poo_N15_c", plot = FALSE, re_formula = NULL, prob = .85)[[1]]
+
+mean(steg_23_dat_no_outlier_c$Poo_N15) #8.1775
+
+steg_hsi_poo_me_unscale<-
+  steg_hsi_poo_me%>%
+  mutate(Poo_N15 = Poo_N15_c +8.1775)%>%
+  mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+acan_hsi_poo_me<-conditional_effects(acan_hsi_log_poo_n15_mod_nest, effects = "Poo_N15_c", plot = FALSE, re_formula = NULL, prob = .85)[[1]]
+
+mean(acan_23_dat_no_outlier_c$Poo_N15) #8.49925
+
+
+acan_hsi_poo_me_unscale<-
+  acan_hsi_poo_me%>%
+  mutate(Poo_N15 = Poo_N15_c +8.49925)%>%
+    mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+poo_colors <- c("Damselfish" = "#332288", "Surgeonfish" = "#88CCEE")
+shape<-c("Damselfish" = 19, "Surgeonfish" = 17)
+
+hsi_poo_n15_plot<-
+steg_23_dat_no_outlier_c%>%
+  ggplot(aes(x = Poo_N15, y = HSI))+
+   geom_ribbon(data = steg_hsi_poo_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#332288")+
+   geom_line(data = steg_hsi_poo_me_unscale, aes(y = exp_est), color = "#332288", alpha = .9, lwd = 1) +
+     geom_ribbon(data = acan_hsi_poo_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#88CCEE")+
+   geom_line(data = acan_hsi_poo_me_unscale, aes(y = exp_est), color = "#88CCEE", alpha = .9, lwd = 1) +
+  geom_point(data = acan_23_dat_no_outlier_c, aes(pch = "Surgeonfish", color = "Surgeonfish"), size = 2)+
+  geom_point(aes(pch = "Damselfish", color = "Damselfish"), size = 2)+
+  scale_color_manual(values = poo_colors, name = "")+
+    scale_shape_manual(values = shape, name = "")+
+    xlab(expression(Fecal~italic(delta)^15*N)) +
+      ylab("Condition (HSI)") +
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size = 12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+         legend.background = element_blank(),
+       legend.title = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(.45, .89))
+hsi_poo_n15_plot
+
+
+##GSI------
+acan_gsi_poo_me<-conditional_effects(acan_gsi_log_poo_n15_mod_no_out_nest, effects = "Poo_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+
+mean(acan_23_dat_c_female_no_out$Poo_N15) #8.518158
+
+
+acan_gsi_poo_me_unscale<-
+  acan_gsi_poo_me%>%
+  mutate(Poo_N15 = Poo_N15_c +8.518158)%>%
+    mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+poo_colors <- c("Damselfish" = "#332288", "Surgeonfish" = "#88CCEE")
+shape<-c("Damselfish" = 19, "Surgeonfish" = 17)
+
+gsi_poo_n15_plot<-
+acan_23_dat_c_female_no_out%>%
+  ggplot(aes(x = Poo_N15, y = GSI))+
+     geom_ribbon(data = acan_gsi_poo_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#88CCEE")+
+   geom_line(data = acan_gsi_poo_me_unscale, aes(y = exp_est), color = "#88CCEE", alpha = .9, lwd = 1) +
+  geom_point(data = acan_23_dat_c_female_no_out, aes(pch = "Surgeonfish", color = "Surgeonfish"), size = 2)+
+  scale_color_manual(values = poo_colors, name = "")+
+    scale_shape_manual(values = shape, name = "")+
+    xlab(expression(Fecal~italic(delta)^15*N)) +
+      ylab("Reproductive investment (GSI)") +
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size = 12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+        legend.background = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(.8, .9))
+gsi_poo_n15_plot
+
+
+#----GROWTH RESID--------
+steg_gr_poo_me<-conditional_effects(steg_growth_poo_n15_mod_nest_size, effects = "Poo_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+
+mean(steg_23_dat_c_gr_resid_no_out$Poo_N15) #8.1775
+
+
+steg_gr_poo_me_unscale<-
+  steg_gr_poo_me%>%
+  mutate(Poo_N15 = Poo_N15_c +8.1775)
+
+
+
+acan_gr_poo_me<-conditional_effects(acan_growth_poo_n15_mod_nest_size_no_out, effects = "Poo_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+
+mean(acan_23_dat_no_outlier_c_gr_resid$Poo_N15) #8.374615
+
+
+acan_gr_poo_me_unscale<-
+  acan_gr_poo_me%>%
+  mutate(Poo_N15 = Poo_N15_c +8.374615)
+
+
+poo_colors <- c("Damselfish" = "#332288", "Surgeonfish" = "#88CCEE")
+shape<-c("Damselfish" = 19, "Surgeonfish" = 17)
+
+growth_poo_n15_plot<-
+steg_23_dat_c_gr_resid_no_out%>%
+  ggplot(aes(x = Poo_N15, y = Growth_residuals))+
+   geom_ribbon(data = steg_gr_poo_me_unscale, aes(y = estimate__,  ymin = lower__, ymax=upper__), alpha = .2, fill = "#332288")+
+   geom_line(data = steg_gr_poo_me_unscale, aes(y = estimate__), color = "#332288", alpha = .9, lwd = 1) +
+     geom_ribbon(data = acan_gr_poo_me_unscale, aes(y = estimate__,  ymin = lower__, ymax=upper__), alpha = .2, fill = "#88CCEE")+
+   geom_line(data = acan_gr_poo_me_unscale, aes(y = estimate__), color = "#88CCEE", alpha = .9, lwd = 1) +
+  geom_point(data = acan_23_dat_no_outlier_c_gr_resid, aes(pch = "Surgeonfish", color = "Surgeonfish"), size = 2)+
+  geom_point(aes(pch = "Damselfish", color = "Damselfish"), size = 2)+
+  scale_color_manual(values = poo_colors, name = "")+
+    scale_shape_manual(values = shape, name = "")+
+    xlab(expression(Fecal~italic(delta)^15*N)) +
+      ylab("Growth (residuals)") +
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size = 12),
+     panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+        legend.background = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(.8, .3))
+growth_poo_n15_plot
+
+
+```
+
+
+#PLOT AND COMBINE DEMOGRPAHIC RESULTS - MUSCLE N15:-------
+```{r}
+
+#----HSI--------
+steg_hsi_musc_me<-conditional_effects(steg_hsi_log_musc_n15_mod_nest, effects = "Muscle_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+
+mean(steg_23_dat_no_outlier_c$Muscle_N15) #10.50792
+
+
+steg_hsi_musc_me_unscale<-
+  steg_hsi_musc_me%>%
+  mutate(Muscle_N15 = Muscle_N15_c +10.50792)%>%
+  mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+
+
+acan_hsi_musc_me<-conditional_effects(acan_hsi_log_musc_n15_mod_nest, effects = "Muscle_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+
+mean(acan_23_dat_no_outlier_c$Muscle_N15) #10.45675
+
+
+acan_hsi_musc_me_unscale<-
+  acan_hsi_musc_me%>%
+  mutate(Muscle_N15 = Muscle_N15_c +10.45675)%>%
+    mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+
+musc_colors <- c("Damselfish" = "#117733", "Surgeonfish" = "#44AA99")
+shape<-c("Damselfish" = 19, "Surgeonfish" = 17)
+
+
+hsi_musc_n15_plot<-
+steg_23_dat_no_outlier_c %>%
+  ggplot(aes(x = Muscle_N15, y = HSI))+
+   geom_ribbon(data = steg_hsi_musc_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#117733")+
+   geom_line(data = steg_hsi_musc_me_unscale, aes(y = exp_est), color = "#117733", alpha = .9, lwd = 1) +
+     geom_ribbon(data = acan_hsi_musc_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#44AA99")+
+   geom_line(data = acan_hsi_musc_me_unscale, aes(y = exp_est), color = "#44AA99", alpha = .9, lwd = 1) +
+  geom_point(data = acan_23_dat_no_outlier_c, aes(pch = "Surgeonfish", color = "Surgeonfish"), size = 2)+
+  geom_point(aes(pch = "Damselfish", color = "Damselfish"), size = 2)+
+  scale_color_manual(values = musc_colors, name = "")+
+    scale_shape_manual(values = shape, name = "")+
+    xlab(expression(Muscle~italic(delta)^15*N)) +
+      ylab("Condition (HSI)") +
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size = 12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(.79, .12),
+        legend.background = element_blank())
+hsi_musc_n15_plot
+#warning because 2 missing data points (no liver weights)
+
+##GSI------
+acan_gsi_musc_me<-conditional_effects(acan_gsi_log_musc_n15_mod_no_out_nest, effects = "Muscle_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+
+mean(acan_23_dat_c_female_no_out$Muscle_N15) #10.51053
+
+
+acan_gsi_musc_me_unscale<-
+  acan_gsi_musc_me%>%
+  mutate(Muscle_N15 = Muscle_N15_c +10.51053)%>%
+    mutate(exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+
+gsi_musc_n15_plot<-
+acan_23_dat_c_female_no_out%>%
+  ggplot(aes(x = Muscle_N15, y = GSI))+
+     geom_ribbon(data = acan_gsi_musc_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#44AA99")+
+   geom_line(data = acan_gsi_musc_me_unscale, aes(y = exp_est), color = "#44AA99", alpha = .9, lwd = 1) +
+  geom_point(data = acan_23_dat_c_female_no_out, aes(pch = "Surgeonfish", color = "Surgeonfish"), size = 2)+
+  scale_color_manual(values = musc_colors, name = "")+
+    scale_shape_manual(values = shape, name = "")+
+    xlab(expression(Muscle~italic(delta)^15*N)) +
+      ylab("Reproductive investment (GSI)") +
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size = 12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+        legend.background = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(.8, .9))
+gsi_musc_n15_plot
+
+
+
+#----GROWTH RESID--------
+steg_gr_musc_me<-conditional_effects(steg_growth_musc_n15_mod_nest_size, effects = "Muscle_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+
+mean(steg_23_dat_c_gr_resid_no_out$Muscle_N15) #10.50792
+
+
+steg_gr_musc_me_unscale<-
+  steg_gr_musc_me%>%
+  mutate(Muscle_N15 = Muscle_N15_c +10.50792)
+
+
+
+acan_gr_musc_me<-conditional_effects(acan_growth_musc_n15_mod_nest_size_no_out, effects = "Muscle_N15_c", plot = FALSE, re_formula = NULL, prob = 0.85)[[1]]
+
+mean(acan_23_dat_no_outlier_c_gr_resid$Muscle_N15) #10.40744
+
+acan_gr_musc_me_unscale<-
+  acan_gr_musc_me%>%
+  mutate(Muscle_N15 = Muscle_N15_c +10.40744)
+
+
+growth_musc_n15_plot<-
+steg_23_dat_c_gr_resid_no_out%>%
+  ggplot(aes(x = Muscle_N15, y = Growth_residuals))+
+   geom_ribbon(data = steg_gr_musc_me_unscale, aes(y = estimate__,  ymin = lower__, ymax=upper__), alpha = .2, fill = "#117733")+
+   geom_line(data = steg_gr_musc_me_unscale, aes(y = estimate__), color = "#117733", alpha = .9, lwd = 1) +
+     geom_ribbon(data = acan_gr_musc_me_unscale, aes(y = estimate__,  ymin = lower__, ymax=upper__), alpha = .2, fill = "#44AA99")+
+   geom_line(data = acan_gr_musc_me_unscale, aes(y = estimate__), color = "#44AA99", alpha = .9, lwd = 1) +
+  geom_point(data = acan_23_dat_no_outlier_c_gr_resid, aes(pch = "Surgeonfish", color = "Surgeonfish"), size = 2)+
+  geom_point(aes(pch = "Damselfish", color = "Damselfish"), size = 2)+
+  scale_color_manual(values = musc_colors, name = "")+
+    scale_shape_manual(values = shape, name = "")+
+    xlab(expression(Muscle~italic(delta)^15*N)) +
+      ylab("Growth (residuals)") +
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size = 12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+         legend.background = element_blank(),
+       legend.title = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(.8, .2))
+growth_musc_n15_plot
+
+
+
+
+
+```
+
+
+##FIGURES - GROWTH CURVES-----------
+```{r}
+
+steg_growth_me<- conditional_effects(steg_growth_mod_no_out, plot = FALSE, prob = 0.85)[[1]]
+steg_growth_me
+
+steg_growth_me_unscale<-
+  steg_growth_me%>%
+  mutate(TL_cm = exp(llength),
+         exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+acan_growth_me<- conditional_effects(acan_growth_mod_no_out, plot = FALSE, prob = 0.85)[[1]]
+acan_growth_me
+
+acan_growth_me_unscale<-
+  acan_growth_me%>%
+  mutate(TL_cm = exp(llength),
+         exp_est = exp(estimate__),
+         exp_lwr = exp(lower__),
+         exp_upr = exp(upper__))
+
+
+###by muscle n15:------
+steg_growth_curve_muscle<-
+steg_23_dat_no_out_c_gr%>%
+  ggplot(aes(x = Age, y = TL_cm))+
+   geom_ribbon(data = steg_growth_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#117733")+
+   geom_line(data = steg_growth_me_unscale, aes(y = exp_est), color = "#117733", alpha = .9, lwd = 1) +
+  geom_point(aes(pch = "Damselfish", color = Muscle_N15, fill = Muscle_N15), size = 2)+
+  scale_fill_viridis_c(name = expression("Muscle " * delta^15 * "N"),option = "mako")+
+    scale_color_viridis_c(name = expression("Muscle " * delta^15 * "N"), option = "mako")+
+    scale_shape_manual(values = shape, name = "", guide = "none")+
+    ylab("Damselfish length (cm)") +
+      xlab("Damselfish age (years)") +
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size = 12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+       # legend.title = element_blank(),
+        legend.background = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(.8, .32))
+
+steg_growth_curve_muscle
+
+
+
+
+
+acan_growth_curve_muscle<-
+acan_23_dat_no_outlier_c_gr%>%
+  ggplot(aes(x = Age, y = TL_cm))+
+   geom_ribbon(data = acan_growth_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#44AA99")+
+   geom_line(data = acan_growth_me_unscale, aes(y = exp_est), color = "#44AA99", alpha = .9, lwd = 1) +
+  geom_point(aes(pch = "Surgeonfish", color = Muscle_N15, fill = Muscle_N15), size = 2)+
+  scale_fill_viridis_c(name = expression("Muscle " * delta^15 * "N"), option = "mako")+
+    scale_color_viridis_c(name = expression("Muscle " * delta^15 * "N"),option = "mako")+
+    scale_shape_manual(values = shape, name = "", guide = "none")+
+    ylab("Surgeonfish length (cm)") +
+      xlab("Surgeonfish age (years)") +
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size=12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+       # legend.title = element_blank(),
+        legend.background = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(.8, .32))
+
+acan_growth_curve_muscle
+
+
+
+###by poo n15:------
+steg_growth_curve_poo<-
+steg_23_dat_no_out_c_gr%>%
+  ggplot(aes(x = Age, y = TL_cm))+
+   geom_ribbon(data = steg_growth_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#332288")+
+   geom_line(data = steg_growth_me_unscale, aes(y = exp_est), color = "#332288", alpha = .9, lwd = 1) +
+  geom_point(aes(pch = "Damselfish", color = Poo_N15, fill = Poo_N15), size = 2)+
+#  scale_fill_viridis_c(name = "Fecal N15")+
+ #  scale_color_viridis_c(name = "Fecal N15")+
+     scale_fill_viridis_c(name = expression("Fecal " * delta^15 * "N"), option = "mako")+
+    scale_color_viridis_c(name = expression("Fecal " * delta^15 * "N"),option = "mako")+
+    scale_shape_manual(values = shape, name = "", guide = "none")+
+    ylab("Damselfish length (cm)") +
+      xlab("Damselfish age (years)") +
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size=12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+       # legend.title = element_blank(),
+        legend.background = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(.8, .32))
+
+steg_growth_curve_poo
+
+
+
+acan_growth_curve_poo<-
+acan_23_dat_no_outlier_c_gr%>%
+  ggplot(aes(x = Age, y = TL_cm))+
+   geom_ribbon(data = acan_growth_me_unscale, aes(y = exp_est,  ymin = exp_lwr, ymax=exp_upr), alpha = .2, fill = "#88CCEE")+
+   geom_line(data = acan_growth_me_unscale, aes(y = exp_est), color = "#88CCEE", alpha = .9, lwd = 1) +
+  geom_point(aes(pch = "Surgeonfish", color = Poo_N15, fill = Poo_N15), size = 2)+
+  #scale_fill_viridis_c(name = "Fecal N15")+
+   #scale_color_viridis_c(name = "Fecal N15")+
+    scale_fill_viridis_c(name = expression("Fecal " * delta^15 * "N"), option = "mako")+
+    scale_color_viridis_c(name = expression("Fecal " * delta^15 * "N"), option = "mako")+
+    scale_shape_manual(values = shape, name = "", guide = "none")+
+    ylab("Surgeonfish length (cm)") +
+      xlab("Surgeonfish age (years)") +
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size=12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+       # legend.title = element_blank(),
+         legend.background = element_blank(),
+       legend.position = "inside",
+        legend.position.inside = c(.8, .32))
+
+acan_growth_curve_poo
+
+
+```
+
+
+#plot posterior predictions: Demographics-----
+```{r}
+
+###MUSCLE - EXP-----
+#plot stegastes and acanthurus together: HSI + GSI (EXP), musc------
+musc_colors <- c("Damselfish" = "#117733", "Surgeonfish" = "#44AA99")
+
+hsi_gsi_musc_posterior_plot<-
+ggplot() +
+   geom_vline(xintercept=1, lty=2, alpha = .5)+
+  
+###Posterior densities for stegastes - n, c, c:n:   
+  stat_halfeye(data = as_draws_df(steg_hsi_log_musc_n15_mod_nest), aes(x = exp(b_Muscle_N15_c),  y = 2.2, fill = "Damselfish", color = "Damselfish"), point_interval = NULL, slab_alpha = .3) + 
+  
+  ##posterior densities for Atri:
+  stat_halfeye(data = as_draws_df(acan_hsi_log_musc_n15_mod_nest), aes(x = exp(b_Muscle_N15_c),  y = 2.1, fill = "Surgeonfish", color = "Surgeonfish"), point_interval = NULL, slab_alpha = .3) + 
+     stat_halfeye(data = as_draws_df(acan_gsi_log_musc_n15_mod_no_out_nest), aes(x = exp(b_Muscle_N15_c),  y = 1, fill = "Surgeonfish", color = "Surgeonfish"), point_interval = NULL, slab_alpha = .3) + 
+  
+  ##re-set color scale because outline is throwing off the legend:  
+    scale_fill_manual(values = colors, name = "")+
+    scale_color_manual(values = colors, name = "")+
+    new_scale_color()+
+   new_scale_fill()+
+  
+  ###Posterior densities for stegastes - OUTLINES:   
+  stat_halfeye(data = as_draws_df(steg_hsi_log_musc_n15_mod_nest), aes(x = exp(b_Muscle_N15_c),  y = 2.2), point_interval = NULL, slab_fill = NA, outline_bars = TRUE, slab_color = "#117733",   slab_linewidth = .5 ) + 
+  
+  ##posterior densites for Atri OUTLINES:
+  stat_halfeye(data = as_draws_df(acan_hsi_log_musc_n15_mod_nest), aes(x = exp(b_Muscle_N15_c),  y = 2.1),   point_interval = NULL,   slab_fill = NA, outline_bars = TRUE, slab_color = "#44AA99",   slab_linewidth = .5 ) + 
+   stat_halfeye(data = as_draws_df(acan_gsi_log_musc_n15_mod_no_out_nest), aes(x = exp(b_Muscle_N15_c),  y = 1), point_interval = NULL,  slab_fill = NA, outline_bars = TRUE, slab_color = "#44AA99",   slab_linewidth = .5 ) + 
+  
+##intervals for Atri:
+     stat_halfeye(data = as_draws_df(acan_hsi_log_musc_n15_mod_nest), aes(x = exp(b_Muscle_N15_c),  y = 2.1, fill = "Surgeonfish", color = "Surgeonfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = .0, pch= 17) + 
+     stat_halfeye(data = as_draws_df(acan_gsi_log_musc_n15_mod_no_out_nest), aes(x = exp(b_Muscle_N15_c),  y = 1, fill = "Surgeonfish", color = "Surgeonfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = 0, pch= 17 ) + 
+  
+  ###intervals for stegastes:   
+  stat_halfeye(data = as_draws_df(steg_hsi_log_musc_n15_mod_nest), aes(x = exp(b_Muscle_N15_c),  y =2.2, fill = "Damselfish", color = "Damselfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = 0) + 
+  
+#now set formatting:
+  scale_y_continuous(labels = c("HSI", "GSI"), breaks = c(2.1,1))+
+  scale_fill_manual(values = musc_colors, name = "", guide = "none")+
+  scale_color_manual(values = musc_colors, name = "", guide = "none")+
+  ylab("")+
+  xlab("Multiplicative effect on demographics")+
+ theme_bw() +
+   theme(element_text(size=12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+         legend.background = element_blank(),
+       legend.title = element_blank(),
+        legend.position = c(.8, .2))
+hsi_gsi_musc_posterior_plot
+
+
+  
+#plot stegastes and acanthurus together: GROWTH, musc------
+musc_colors <- c("Damselfish" = "#117733", "Surgeonfish" = "#44AA99")
+
+
+growth_musc_posterior_plot<-
+ggplot() +
+   geom_vline(xintercept=0, lty=2, alpha = .5)+
+  
+###Posterior densities for stegastes - n, c, c:n:   
+  stat_halfeye(data = as_draws_df(steg_growth_musc_n15_mod_nest_size), aes(x = b_Muscle_N15_c,  y = 1.1, fill = "Damselfish", color = "Damselfish"), point_interval = NULL, slab_alpha = .3) + 
+  
+  ##posterior densities for Atri:
+  stat_halfeye(data = as_draws_df(acan_growth_musc_n15_mod_nest_size_no_out), aes(x = b_Muscle_N15_c,  y = 1, fill = "Surgeonfish", color = "Surgeonfish"), point_interval = NULL, slab_alpha = .3) + 
+
+  ##re-set color scale because outline is throwing off the legend:  
+    scale_fill_manual(values = colors, name = "")+
+    scale_color_manual(values = colors, name = "")+
+    new_scale_color()+
+   new_scale_fill()+
+  
+  ###Posterior densities for stegastes - OUTLINES:   
+  stat_halfeye(data = as_draws_df(steg_growth_musc_n15_mod_nest_size), aes(x = b_Muscle_N15_c,  y = 1.1), point_interval = NULL, slab_fill = NA, outline_bars = TRUE, slab_color = "#117733",   slab_linewidth = .5 ) + 
+  
+  ##posterior densites for Atri OUTLINES:
+  stat_halfeye(data = as_draws_df(acan_growth_musc_n15_mod_nest_size_no_out), aes(x = b_Muscle_N15_c,  y = 1),   point_interval = NULL,   slab_fill = NA, outline_bars = TRUE, slab_color = "#44AA99",   slab_linewidth = .5 ) + 
+
+##intervals for Atri:
+     stat_halfeye(data = as_draws_df(acan_growth_musc_n15_mod_nest_size_no_out), aes(x = b_Muscle_N15_c,  y = 1, fill = "Surgeonfish", color = "Surgeonfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = .0, pch= 17) + 
+  
+  ###intervals for stegastes:   
+  stat_halfeye(data = as_draws_df(steg_growth_musc_n15_mod_nest_size), aes(x = b_Muscle_N15_c,  y =1.1, fill = "Damselfish", color = "Damselfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = 0) + 
+  
+#now set formatting:
+  scale_y_continuous(labels = c(""), breaks = c(1))+
+  scale_fill_manual(values = musc_colors, name = "", guide = "none")+
+  scale_color_manual(values = musc_colors, name = "", guide = "none")+
+  ylab("")+
+  xlab("Posterior effect on growth residuals")+
+ theme_bw() +
+   theme(element_text(size=12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+         legend.background = element_blank(),
+       legend.title = element_blank(),
+        legend.position = c(.2, .8))
+growth_musc_posterior_plot
+
+
+
+#plot stegastes and acanthurus together: HSI + GSI (EXP), POO------
+poo_colors <- c("Damselfish" = "#332288", "Surgeonfish" = "#88CCEE")
+
+hsi_gsi_poo_posterior_plot<-
+ggplot() +
+   geom_vline(xintercept=1, lty=2, alpha = .5)+
+  
+###Posterior densities for stegastes - n, c, c:n:   
+  stat_halfeye(data = as_draws_df(steg_hsi_log_poo_n15_mod_nest), aes(x = exp(b_Poo_N15_c),  y = 2.2, fill = "Damselfish", color = "Damselfish"), point_interval = NULL, slab_alpha = .3) + 
+  
+  ##posterior densities for Atri:
+  stat_halfeye(data = as_draws_df(acan_hsi_log_poo_n15_mod_nest), aes(x = exp(b_Poo_N15_c),  y = 2.1, fill = "Surgeonfish", color = "Surgeonfish"), point_interval = NULL, slab_alpha = .5) + 
+     stat_halfeye(data = as_draws_df(acan_gsi_log_poo_n15_mod_no_out_nest), aes(x = exp(b_Poo_N15_c),  y = 1, fill = "Surgeonfish", color = "Surgeonfish"), point_interval = NULL, slab_alpha = .5) + 
+  
+  ##re-set color scale because outline is throwing off the legend:  
+    scale_fill_manual(values = poo_colors, name = "")+
+    scale_color_manual(values = poo_colors, name = "")+
+    new_scale_color()+
+   new_scale_fill()+
+  
+  ###Posterior densities for stegastes - OUTLINES:   
+  stat_halfeye(data = as_draws_df(steg_hsi_log_poo_n15_mod_nest), aes(x = exp(b_Poo_N15_c),  y = 2.2), point_interval = NULL, slab_fill = NA, outline_bars = TRUE, slab_color = "#332288",   slab_linewidth = .5 ) + 
+  
+  ##posterior densites for Atri OUTLINES:
+  stat_halfeye(data = as_draws_df(acan_hsi_log_poo_n15_mod_nest), aes(x = exp(b_Poo_N15_c),  y = 2.1),   point_interval = NULL,   slab_fill = NA, outline_bars = TRUE, slab_color = "#88CCEE",   slab_linewidth = .5 ) + 
+   stat_halfeye(data = as_draws_df(acan_gsi_log_poo_n15_mod_no_out_nest), aes(x = exp(b_Poo_N15_c),  y = 1), point_interval = NULL,  slab_fill = NA, outline_bars = TRUE, slab_color = "#88CCEE",   slab_linewidth = .5 ) + 
+  
+##intervals for Atri:
+     stat_halfeye(data = as_draws_df(acan_hsi_log_poo_n15_mod_nest), aes(x = exp(b_Poo_N15_c),  y = 2.1, fill = "Surgeonfish", color = "Surgeonfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = .0, pch= 17) + 
+     stat_halfeye(data = as_draws_df(acan_gsi_log_poo_n15_mod_no_out_nest), aes(x = exp(b_Poo_N15_c),  y = 1, fill = "Surgeonfish", color = "Surgeonfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = 0, pch= 17 ) + 
+  
+  ###intervals for stegastes:   
+  stat_halfeye(data = as_draws_df(steg_hsi_log_poo_n15_mod_nest), aes(x = exp(b_Poo_N15_c),  y =2.2, fill = "Damselfish", color = "Damselfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = 0) + 
+  
+#now set formatting:
+  scale_y_continuous(labels = c("HSI", "GSI"), breaks = c(2.1,1))+
+  scale_fill_manual(values = poo_colors, name = "", guide = "none")+
+  scale_color_manual(values = poo_colors, name = "", guide = "none")+
+  ylab("")+
+  xlab("Multiplicative effect on demographics")+
+ theme_bw() +
+   theme(element_text(size=12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+         legend.background = element_blank(),
+       legend.title = element_blank(),
+        legend.position = c(.8, .2))
+hsi_gsi_poo_posterior_plot
+
+
+  
+#plot stegastes and acanthurus together: GROWTH, POO------
+
+growth_poo_posterior_plot<-
+ggplot() +
+   geom_vline(xintercept=0, lty=2, alpha = .5)+
+  
+###Posterior densities for stegastes - n, c, c:n:   
+  stat_halfeye(data = as_draws_df(steg_growth_poo_n15_mod_nest_size), aes(x = b_Poo_N15_c,  y = 1.1, fill = "Damselfish", color = "Damselfish"), point_interval = NULL, slab_alpha = .3) + 
+  
+  ##posterior densities for Atri:
+  stat_halfeye(data = as_draws_df(acan_growth_poo_n15_mod_nest_size_no_out), aes(x = b_Poo_N15_c,  y = 1, fill = "Surgeonfish", color = "Surgeonfish"), point_interval = NULL, slab_alpha = .5) + 
+
+  ##re-set color scale because outline is throwing off the legend:  
+    scale_fill_manual(values = poo_colors, name = "")+
+    scale_color_manual(values = poo_colors, name = "")+
+    new_scale_color()+
+   new_scale_fill()+
+  
+  ###Posterior densities for stegastes - OUTLINES:   
+  stat_halfeye(data = as_draws_df(steg_growth_poo_n15_mod_nest_size), aes(x = b_Poo_N15_c,  y = 1.1), point_interval = NULL, slab_fill = NA, outline_bars = TRUE, slab_color = "#332288",   slab_linewidth = .5 ) + 
+  
+  ##posterior densites for Atri OUTLINES:
+  stat_halfeye(data = as_draws_df(acan_growth_poo_n15_mod_nest_size_no_out), aes(x = b_Poo_N15_c,  y = 1),   point_interval = NULL,   slab_fill = NA, outline_bars = TRUE, slab_color = "#88CCEE",   slab_linewidth = .5 ) + 
+
+##intervals for Atri:
+     stat_halfeye(data = as_draws_df(acan_growth_poo_n15_mod_nest_size_no_out), aes(x = b_Poo_N15_c,  y = 1, fill = "Surgeonfish", color = "Surgeonfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = .0, pch= 17) + 
+  
+  ###intervals for stegastes:   
+  stat_halfeye(data = as_draws_df(steg_growth_poo_n15_mod_nest_size), aes(x = b_Poo_N15_c,  y =1.1, fill = "Damselfish", color = "Damselfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = 0) + 
+  
+#now set formatting:
+  scale_y_continuous(labels = c(""), breaks = c(1))+
+  scale_x_continuous(limits = c(-.10, .10))+
+  scale_fill_manual(values = poo_colors, name = "", guide = "none")+
+  scale_color_manual(values = poo_colors, name = "", guide = "none")+
+  ylab("")+
+  xlab("Posterior effect on growth residuals")+
+ theme_bw() +
+   theme(element_text(size=12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+         legend.background = element_blank(),
+       legend.title = element_blank(),
+        legend.position = c(.8, .8))
+growth_poo_posterior_plot
+
+
+```
+
+
+##COMBINE AND SAVE DEMOGRAPHIC FIGURES:----------
+```{r}
+
+#feces:------
+steg_growth_curve_poo
+acan_growth_curve_poo
+growth_poo_posterior_plot
+hsi_gsi_poo_posterior_plot
+growth_poo_n15_plot
+hsi_poo_n15_plot
+gsi_poo_n15_plot
+
+dem_plots_1<-plot_grid(hsi_poo_n15_plot,steg_growth_curve_poo, gsi_poo_n15_plot, acan_growth_curve_poo, hsi_gsi_poo_posterior_plot, growth_poo_posterior_plot,
+                                        ncol = 2, labels = c("(a)", "(d)", "(b)", "(e)", "(c)", "(f)"), label_fontface = "plain", label_x = .15, label_y = 0.98, align = "hv")
+dem_plots_1
+
+
+ggsave(plot = dem_plots_1, filename = "../outputs/figures/fecal_plots_dem_supp.tif", 
+       width  = 1961, height = 2700, units = "px")
+
+
+
+##now save muscle ones:-----
+dem_plots_musc_1<-plot_grid(hsi_musc_n15_plot,steg_growth_curve_muscle, gsi_musc_n15_plot, acan_growth_curve_muscle, hsi_gsi_musc_posterior_plot, growth_musc_posterior_plot,
+                                       ncol = 2, labels = c("(a)", "(d)", "(b)", "(e)", "(c)", "(f)"), label_fontface = "plain", label_x = .15, label_y = 0.98, align = "hv")
+dem_plots_musc_1
+
+
+ggsave(plot = dem_plots_musc_1, filename = "../outputs/figures/figure3.tif", 
+       width  = 1961, height = 2700, units = "px")
+
+```
+
+####-----Effect sizes for storage and supply-------------
+```{r}
+
+#MUSCLE-------
+acan_musc_n_size_mod_add_nest_log%>%
+  spread_draws(b_Muscle_N15_c)%>%
+  median_hdi(exp(b_Muscle_N15_c))
+
+acan_musc_c_size_mod_add_nest_log%>%
+  spread_draws(b_Muscle_N15_c)%>%
+  median_hdi(exp(b_Muscle_N15_c))
+
+
+acan_musc_cn_size_mod_add_nest_log%>%
+  spread_draws(b_Muscle_N15_c)%>%
+  median_hdi(exp(b_Muscle_N15_c))
+
+
+steg_musc_n_size_mod_add_nest_log%>%
+  spread_draws(b_Muscle_N15_c)%>%
+  median_hdi(exp(b_Muscle_N15_c))
+
+
+steg_musc_c_size_mod_add_nest_log%>%
+  spread_draws(b_Muscle_N15_c)%>%
+  median_hdi(exp(b_Muscle_N15_c))
+
+
+steg_musc_cn_size_mod_add_nest_log%>%
+  spread_draws(b_Muscle_N15_c)%>%
+  median_hdi(exp(b_Muscle_N15_c))
+
+
+#Poo-------
+acan_poo_n_size_mod_add_nest_log%>%
+  spread_draws(b_Poo_N15_c)%>%
+  median_hdi(exp(b_Poo_N15_c))
+
+acan_poo_c_size_mod_add_nest_log%>%
+  spread_draws(b_Poo_N15_c)%>%
+  median_hdi(exp(b_Poo_N15_c))
+
+acan_poo_cn_size_mod_add_nest_log%>%
+  spread_draws(b_Poo_N15_c)%>%
+  median_hdi(exp(b_Poo_N15_c))
+
+steg_poo_n_size_mod_add_nest_log%>%
+  spread_draws(b_Poo_N15_c)%>%
+  median_hdi(exp(b_Poo_N15_c))
+
+
+steg_poo_c_size_mod_add_nest_log%>%
+  spread_draws(b_Poo_N15_c)%>%
+  median_hdi(exp(b_Poo_N15_c))
+
+
+steg_poo_cn_size_mod_add_nest_log%>%
+  spread_draws(b_Poo_N15_c)%>%
+  median_hdi(exp(b_Poo_N15_c))
+
+```
+
+
+####-----Effect sizes for size (supplement)-------------
+```{r}
+
+#MUSCLE-------
+acan_musc_n_size_mod_add_nest_log%>%
+  spread_draws(b_TL_cm_c)%>%
+  median_hdi(exp(b_TL_cm_c*10))
+
+hypothesis(acan_musc_n_size_mod_add_nest_log, "TL_cm_c>0") 
+
+acan_musc_c_size_mod_add_nest_log%>%
+  spread_draws(b_TL_cm_c)%>%
+  median_hdi(exp(b_TL_cm_c))
+
+hypothesis(acan_musc_c_size_mod_add_nest_log, "TL_cm_c>0") #
+
+
+acan_musc_cn_size_mod_add_nest_log%>%
+  spread_draws(b_TL_cm_c)%>%
+  median_hdi(exp(b_TL_cm_c))
+
+hypothesis(acan_musc_cn_size_mod_add_nest_log, "TL_cm_c<0") 
+
+
+steg_musc_n_size_mod_add_nest_log%>%
+  spread_draws(b_TL_cm_c)%>%
+  median_hdi(exp(b_TL_cm_c))
+
+hypothesis(steg_musc_n_size_mod_add_nest_log, "TL_cm_c>0") #
+
+
+steg_musc_c_size_mod_add_nest_log%>%
+  spread_draws(b_TL_cm_c)%>%
+  median_hdi(exp(b_TL_cm_c))
+
+hypothesis(steg_musc_c_size_mod_add_nest_log, "TL_cm_c>0") #
+
+
+
+steg_musc_cn_size_mod_add_nest_log%>%
+  spread_draws(b_TL_cm_c)%>%
+  median_hdi(exp(b_TL_cm_c))
+
+hypothesis(steg_musc_cn_size_mod_add_nest_log, "TL_cm_c<0") #
+
+
+#Poo-------
+acan_poo_n_size_mod_add_nest_log%>%
+  spread_draws(b_TL_cm_c)%>%
+  median_hdi(exp(b_TL_cm_c))
+
+hypothesis(acan_poo_n_size_mod_add_nest_log, "TL_cm_c>0") #
+
+acan_poo_c_size_mod_add_nest_log%>%
+  spread_draws(b_TL_cm_c)%>%
+  median_hdi(exp(b_TL_cm_c))
+
+hypothesis(acan_poo_c_size_mod_add_nest_log, "TL_cm_c>0") #
+
+
+acan_poo_cn_size_mod_add_nest_log%>%
+  spread_draws(b_TL_cm_c)%>%
+  median_hdi(exp(b_TL_cm_c))
+
+hypothesis(acan_poo_cn_size_mod_add_nest_log, "TL_cm_c<0") #
+
+
+steg_poo_n_size_mod_add_nest_log%>%
+  spread_draws(b_TL_cm_c)%>%
+  median_hdi(exp(b_TL_cm_c))
+
+hypothesis(steg_poo_n_size_mod_add_nest_log, "TL_cm_c>0") #
+
+
+steg_poo_c_size_mod_add_nest_log%>%
+  spread_draws(b_TL_cm_c)%>%
+  median_hdi(exp(b_TL_cm_c))
+
+hypothesis(steg_poo_c_size_mod_add_nest_log, "TL_cm_c>0") #
+
+
+
+steg_poo_cn_size_mod_add_nest_log%>%
+  spread_draws(b_TL_cm_c)%>%
+  median_hdi(exp(b_TL_cm_c))
+
+hypothesis(steg_poo_cn_size_mod_add_nest_log, "TL_cm_c<0") #
+
+```

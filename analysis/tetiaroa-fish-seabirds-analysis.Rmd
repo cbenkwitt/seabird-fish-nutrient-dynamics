@@ -1,0 +1,435 @@
+#-----------checking relationship between seabirds and fish n15-----------------
+
+##load packages
+```{r}
+library(tidyverse) #for everything
+
+#for bayesian modelling and interpreting:
+library(brms)
+library(tidybayes)
+library(emmeans)
+library(jtools)
+
+library(cowplot)
+
+```
+
+
+#load data
+```{r}
+sb_dat_nov23<-read.csv("../data/seabird_dat_focal_nests_side_w_iti_nov_2023.csv")%>%
+  select(-X)
+
+acan_23_dat<-read.csv("../data/acanthurus_data.csv")%>%
+  select(-X)
+
+steg_23_dat<-read.csv("../data/stegastes_data.csv")%>%
+  select(-X)
+
+str(sb_dat_nov23)
+str(acan_23_dat)
+str(steg_23_dat)
+
+
+```
+
+###combine data-----
+```{r}
+
+sb_dat_nov23_2<-
+  sb_dat_nov23%>%
+  mutate(Motu = str_to_upper(Motu),
+         Exposure = case_when(Exposure == "Exposed"~"windward",
+                              Exposure == "Protected"~"leeward"))
+
+acan_nov23_sb_dat<-
+  right_join(sb_dat_nov23_2, acan_23_dat, by = join_by(Motu, Exposure))
+acan_nov23_sb_dat
+
+
+steg_nov23_sb_dat<-
+  right_join(sb_dat_nov23_2, steg_23_dat, by = join_by(Motu, Exposure))
+steg_nov23_sb_dat
+
+#and stegastes no outlier:
+steg_nov23_sb_dat_no_out<-
+  steg_nov23_sb_dat%>%
+  filter(Muscle_N15<=14)
+steg_nov23_sb_dat_no_out
+
+
+#and acanthurus no outlier:
+acan_nov23_sb_dat_no_out <-
+  acan_nov23_sb_dat%>%
+     filter(Muscle_C<52)
+acan_nov23_sb_dat_no_out
+
+
+
+#center data------
+steg_nov23_sb_dat_no_out_c<-
+  steg_nov23_sb_dat_no_out%>%
+  mutate(breeding_biomass_kgha_side_w_Iti_c = base::scale(breeding_biomass_kgha_side_w_Iti, center= TRUE, scale = FALSE),
+         TL_cm_c = base::scale(TL_cm, center= TRUE, scale = FALSE),
+         log_breeding_biomass_kgha_side_w_Iti = log(breeding_biomass_kgha_side_w_Iti),
+        log_breeding_biomass_kgha_side_w_Iti_c =   base::scale(log_breeding_biomass_kgha_side_w_Iti, center= TRUE, scale = FALSE))
+
+
+acan_nov23_sb_dat_no_out_c<-
+  acan_nov23_sb_dat_no_out%>%
+  mutate(breeding_biomass_kgha_side_w_Iti_c = base::scale(breeding_biomass_kgha_side_w_Iti, center= TRUE, scale = FALSE),
+         TL_cm_c = base::scale(TL_cm, center= TRUE, scale = FALSE),
+         log_breeding_biomass_kgha_side_w_Iti = log(breeding_biomass_kgha_side_w_Iti),
+        log_breeding_biomass_kgha_side_w_Iti_c =   base::scale(log_breeding_biomass_kgha_side_w_Iti, center= TRUE, scale = FALSE))
+
+
+
+```
+
+
+###run analysis muscle n15-------
+```{r}
+
+acan_musc_n15_sb_nov23_nest_mod_sizec <- brm(Muscle_N15  ~ log_breeding_biomass_kgha_side_w_Iti_c + TL_cm_c+ (1|Motu/Motu_Exposure),
+                data=acan_nov23_sb_dat_no_out_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/acan_musc_n15_sb_nov23_nest_mod_sizec") #worked
+print(acan_musc_n15_sb_nov23_nest_mod_sizec)
+pp_check(acan_musc_n15_sb_nov23_nest_mod_sizec)
+plot(acan_musc_n15_sb_nov23_nest_mod_sizec, ask = FALSE)
+
+hypothesis(acan_musc_n15_sb_nov23_nest_mod_sizec, "log_breeding_biomass_kgha_side_w_Iti_c>0") ##.91
+
+
+
+
+steg_musc_n15_sb_nov23_nest_mod_sizec <- brm(Muscle_N15  ~ log_breeding_biomass_kgha_side_w_Iti_c + TL_cm_c + (1|Motu/Motu_Exposure),
+                data=steg_nov23_sb_dat_no_out_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/steg_musc_n15_sb_nov23_nest_mod_sizec") #worked
+
+print(steg_musc_n15_sb_nov23_nest_mod_sizec)
+pp_check(steg_musc_n15_sb_nov23_nest_mod_sizec)
+plot(steg_musc_n15_sb_nov23_nest_mod_sizec, ask = FALSE)
+
+hypothesis(steg_musc_n15_sb_nov23_nest_mod_sizec, "log_breeding_biomass_kgha_side_w_Iti_c>0") ##0.95
+
+```
+
+##Fecal n15 models:-----
+```{r}
+
+acan_poo_n15_sb_nov23_nest_mod_sizec <- brm(Poo_N15  ~ log_breeding_biomass_kgha_side_w_Iti_c + TL_cm_c+ (1|Motu/Motu_Exposure),
+                data=acan_nov23_sb_dat_no_out_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/acan_poo_n15_sb_nov23_nest_mod_sizec") 
+print(acan_poo_n15_sb_nov23_nest_mod_sizec)
+pp_check(acan_poo_n15_sb_nov23_nest_mod_sizec)
+plot(acan_poo_n15_sb_nov23_nest_mod_sizec, ask = FALSE)
+
+hypothesis(acan_poo_n15_sb_nov23_nest_mod_sizec, "log_breeding_biomass_kgha_side_w_Iti_c>0") ##0.84
+
+
+
+
+steg_poo_n15_sb_nov23_nest_mod_sizec <- brm(Poo_N15  ~ log_breeding_biomass_kgha_side_w_Iti_c + TL_cm_c + (1|Motu/Motu_Exposure),
+                data=steg_nov23_sb_dat_no_out_c,
+              iter = 3000, warmup = 1000, cores=4, chains = 4, 
+                  control = list(adapt_delta = 0.999, max_treedepth=15), 
+                file = "../outputs/brms/steg_poo_n15_sb_nov23_nest_mod_sizec") 
+
+print(steg_poo_n15_sb_nov23_nest_mod_sizec)
+pp_check(steg_poo_n15_sb_nov23_nest_mod_sizec)
+plot(steg_poo_n15_sb_nov23_nest_mod_sizec, ask = FALSE)
+
+hypothesis(steg_poo_n15_sb_nov23_nest_mod_sizec, "log_breeding_biomass_kgha_side_w_Iti_c>0") ##0.85
+
+
+```
+
+
+##extract effects----
+```{r}
+
+#A doubling of X1 is associated with a change in the mean of Y of log(2β1) units
+steg_poo_n15_sb_nov23_nest_mod_sizec%>%
+  spread_draws(b_log_breeding_biomass_kgha_side_w_Iti_c)%>%
+  median_hdi(log(2^b_log_breeding_biomass_kgha_side_w_Iti_c))
+#0.2897464	-0.316484	0.8375084	
+
+acan_poo_n15_sb_nov23_nest_mod_sizec%>%
+  spread_draws(b_log_breeding_biomass_kgha_side_w_Iti_c)%>%
+  median_hdi(log(2^b_log_breeding_biomass_kgha_side_w_Iti_c))
+#0.5963005	-0.6220097	1.625082	
+
+steg_musc_n15_sb_nov23_nest_mod_sizec%>%
+  spread_draws(b_log_breeding_biomass_kgha_side_w_Iti_c)%>%
+  median_hdi(log(2^b_log_breeding_biomass_kgha_side_w_Iti_c))
+#0.4394653	-0.1016266	0.888914
+
+
+acan_musc_n15_sb_nov23_nest_mod_sizec%>%
+  spread_draws(b_log_breeding_biomass_kgha_side_w_Iti_c)%>%
+  median_hdi(log(2^b_log_breeding_biomass_kgha_side_w_Iti_c))
+#0.6905395	-0.3256103	1.537851	0.95
+
+```
+
+
+
+#--------plots - best fit lines plus raw data------
+```{r}
+
+#----Poo N15--------
+steg_poo_n15_logsb_me<-conditional_effects(steg_poo_n15_sb_nov23_nest_mod_sizec, effects = "log_breeding_biomass_kgha_side_w_Iti_c", plot = FALSE, re_formula = NULL, prob = .85)[[1]] #
+
+mean(steg_nov23_sb_dat_no_out_c$log_breeding_biomass_kgha_side_w_Iti) #4.712947
+
+
+steg_poo_n15_logsb_me_unscale<-
+  steg_poo_n15_logsb_me%>%
+  mutate(log_breeding_biomass_kgha_side_w_Iti = log_breeding_biomass_kgha_side_w_Iti_c +4.712947)
+
+
+acan_poo_n15_logsb_me<-conditional_effects(acan_poo_n15_sb_nov23_nest_mod_sizec, effects = "log_breeding_biomass_kgha_side_w_Iti_c", plot = FALSE, re_formula = NULL, prob = .85 )[[1]] #, re_formula = NULL
+
+mean(acan_nov23_sb_dat_no_out_c$log_breeding_biomass_kgha_side_w_Iti) #4.535658
+
+acan_poo_n15_logsb_me_unscale<-
+  acan_poo_n15_logsb_me%>%
+  mutate(log_breeding_biomass_kgha_side_w_Iti = log_breeding_biomass_kgha_side_w_Iti_c +4.535658)
+
+
+poo_colors <- c("Damselfish" = "#332288", "Surgeonfish" = "#88CCEE")
+shape<-c("Damselfish" = 19, "Surgeonfish" = 17)
+
+poo_n15_logsb_plot<-
+steg_nov23_sb_dat_no_out_c%>%
+  ggplot(aes(x = log_breeding_biomass_kgha_side_w_Iti, y = Poo_N15)) +
+   geom_ribbon(data = steg_poo_n15_logsb_me_unscale, aes(y = estimate__,  ymin = lower__, ymax=upper__), alpha = .2, fill = "#332288")+
+  geom_line(data = steg_poo_n15_logsb_me_unscale, aes(y = estimate__), color = "#332288", alpha = .9, lwd = 1) +
+    geom_ribbon(data = acan_poo_n15_logsb_me_unscale, aes(y = estimate__,  ymin = lower__, ymax=upper__), alpha = .2, fill = "#88CCEE")+
+  geom_line(data = acan_poo_n15_logsb_me_unscale, aes(y = estimate__), color = "#88CCEE", alpha = .9, lwd = 1) +
+  geom_point(data = acan_nov23_sb_dat_no_out_c, aes(pch = "Surgeonfish", color = "Surgeonfish"), size = 2)+
+  geom_point(aes(pch = "Damselfish", color = "Damselfish"), size = 2)+
+  scale_color_manual(values = poo_colors, name = "")+
+    scale_shape_manual(values = shape, name = "")+
+    ylab(expression(Fecal~italic(delta)^15*N)) +
+         xlab(expression(Seabird~breeding~biomass~(kg~ha^-1))) +
+      scale_x_continuous(labels = c(5, 10, 20,  50, 100, 200, 400), breaks = c(log(5), log(10), log(20), log(50), log(100), log(200), log(400)))+
+    scale_y_continuous(limits = c(0,15), breaks = c(0, 5, 10, 15))+ #match other plots
+
+     # xlab(expression(Macroalgal~italic(delta)^15*N)) +
+ # scale_fill_manual(values = colors)+
+  theme_bw() +
+   theme(element_text(size = 12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+         legend.background = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(.3, .88))
+poo_n15_logsb_plot
+
+
+
+#----muscle N15--------
+steg_muscle_n15_logsb_me<-conditional_effects(steg_musc_n15_sb_nov23_nest_mod_sizec, effects = "log_breeding_biomass_kgha_side_w_Iti_c", plot = FALSE, re_formula = NULL, prob = .85 )[[1]] 
+mean(steg_nov23_sb_dat_no_out_c$log_breeding_biomass_kgha_side_w_Iti) #4.712947
+
+
+steg_muscle_n15_logsb_me_unscale<-
+  steg_muscle_n15_logsb_me%>%
+  mutate(log_breeding_biomass_kgha_side_w_Iti = log_breeding_biomass_kgha_side_w_Iti_c +4.712947)
+
+
+acan_muscle_n15_logsb_me<-conditional_effects(acan_musc_n15_sb_nov23_nest_mod_sizec, effects = "log_breeding_biomass_kgha_side_w_Iti_c", plot = FALSE, re_formula = NULL, prob = .85 )[[1]] #
+
+mean(acan_nov23_sb_dat_no_out_c$log_breeding_biomass_kgha_side_w_Iti) #4.535658
+
+acan_muscle_n15_logsb_me_unscale<-
+  acan_muscle_n15_logsb_me%>%
+  mutate(log_breeding_biomass_kgha_side_w_Iti = log_breeding_biomass_kgha_side_w_Iti_c +4.535658)
+
+
+muscle_colors <- c("Damselfish" = "#117733", "Surgeonfish" = "#44AA99")
+shape<-c("Damselfish" = 19, "Surgeonfish" = 17)
+
+muscle_n15_logsb_plot<-
+steg_nov23_sb_dat_no_out_c%>%
+  ggplot(aes(x = log_breeding_biomass_kgha_side_w_Iti, y = Muscle_N15))+
+   geom_ribbon(data = steg_muscle_n15_logsb_me_unscale, aes(y = estimate__,  ymin = lower__, ymax=upper__), alpha = .2, fill = "#117733")+
+   geom_line(data = steg_muscle_n15_logsb_me_unscale, aes(y = estimate__), color = "#117733", alpha = .9, lwd = 1) +
+     geom_ribbon(data = acan_muscle_n15_logsb_me_unscale, aes(y = estimate__,  ymin = lower__, ymax=upper__), alpha = .2, fill = "#44AA99")+
+   geom_line(data = acan_muscle_n15_logsb_me_unscale, aes(y = estimate__), color = "#44AA99", alpha = .9, lwd = 1) +
+  geom_point(data = acan_nov23_sb_dat_no_out_c, aes(pch = "Surgeonfish", color = "Surgeonfish"), size = 2)+
+  geom_point(aes(pch = "Damselfish", color = "Damselfish"), size = 2)+
+ # geom_jitter(data = acan_23_logsb_dat_c, width = 0.4, height = 0, aes(pch = "Surgeonfish", color = "Surgeonfish"))+
+   # geom_jitter(width = 0.4, height = 0, aes(pch = "Damselfish", color = "Damselfish"))+
+  scale_color_manual(values = muscle_colors, name = "")+
+    scale_shape_manual(values = shape, name = "")+
+    ylab(expression(Muscle~italic(delta)^15*N)) +
+   #   xlab(expression(Macroalgal~italic(delta)^15*N)) +
+       xlab(expression(Seabird~breeding~biomass~(kg~ha^-1))) +
+   # scale_y_continuous(breaks = c(6, 9, 12, 15))+
+         # scale_x_continuous( labels = c(1,  10, 100, 500), breaks = c(log(1),  log(10), log(100), log(500)))+ #limits = c(log(2), log(501)),
+      scale_x_continuous(labels = c(5, 10, 20,  50, 100, 200, 400), breaks = c(log(5), log(10), log(20), log(50), log(100), log(200), log(400)))+
+      scale_y_continuous(breaks = c(4, 8, 12, 16), limits = c(3, 17))+
+  #  scale_x_continuous(labels = c(5, 20,  50, 150, 400), breaks = c(log(5), log(20), log(50), log(150), log(400)))+
+ # scale_x_continuous(labels = c(4, 25,  85, 200, 300, 400), breaks = c(log(4), log(25), log(85), log(200),  log(300), log(400)))+ 
+  theme_bw() +
+   theme(element_text(size = 12),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+        legend.background = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(.3, .88))
+muscle_n15_logsb_plot
+
+```
+
+
+
+##plots: posterior distns:-----
+```{r}
+
+#plot stegastes and acanthurus together------
+muscle_logsb_posterior_plot<-
+ggplot() +
+   geom_vline(xintercept=0, lty=2, alpha = .5)+
+###Posterior densities for stegastes - n15 
+  stat_halfeye(data = as_draws_df(steg_musc_n15_sb_nov23_nest_mod_sizec), aes(x = b_log_breeding_biomass_kgha_side_w_Iti_c,  y = 1.1, fill = "Damselfish", color = "Damselfish", pch = "Damselfish"), 
+               point_interval=NULL,  slab_alpha = .3) + 
+  ##posterior densites for Atri:
+  stat_halfeye(data = as_draws_df(acan_musc_n15_sb_nov23_nest_mod_sizec), aes(x = b_log_breeding_biomass_kgha_side_w_Iti_c,  y = 1, fill = "Surgeonfish", color = "Surgeonfish", pch = "Surgeonfish"), 
+               point_interval=NULL,  slab_alpha = .3) + 
+  
+  ##re-set color scale because outline is throwing off the legend:  
+    scale_fill_manual(values = muscle_colors, name = "")+
+    scale_color_manual(values = muscle_colors, name = "")+
+    new_scale_color()+
+   new_scale_fill()+
+  
+  #slab outline stegastes:
+    stat_halfeye(data = as_draws_df(steg_musc_n15_sb_nov23_nest_mod_sizec), aes(x = b_log_breeding_biomass_kgha_side_w_Iti_c,  y = 1.1), point_interval = NULL, slab_fill = NA, outline_bars = TRUE, slab_color = "#117733",   slab_linewidth = .5 ) + 
+  
+    #slab outline acan:
+    stat_halfeye(data = as_draws_df(acan_musc_n15_sb_nov23_nest_mod_sizec), aes(x = b_log_breeding_biomass_kgha_side_w_Iti_c,  y = 1), point_interval = NULL,  slab_fill = NA, outline_bars = TRUE, slab_color = "#44AA99",   slab_linewidth = .5 ) + 
+  
+  
+  #intervals acan:
+   stat_halfeye(data = as_draws_df(acan_musc_n15_sb_nov23_nest_mod_sizec), aes(x = b_log_breeding_biomass_kgha_side_w_Iti_c,  y = 1, fill = "Surgeonfish", color = "Surgeonfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = .0, pch= 17,  point_size = 2 ) + 
+  
+  ###intervals for stegastes:   
+  stat_halfeye(data = as_draws_df(steg_musc_n15_sb_nov23_nest_mod_sizec), aes(x = b_log_breeding_biomass_kgha_side_w_Iti_c,  y = 1.1, fill = "Damselfish", color = "Damselfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = 0,  point_size = 2) + 
+  
+#now set formatting:
+  scale_y_continuous(breaks = NULL)+
+       scale_fill_manual(values = muscle_colors, name = "", guide = "none")+
+  scale_color_manual(values = muscle_colors, name = "", guide = "none")+
+      scale_shape_manual(values = shape, name = "")+
+  ylab("")+
+   scale_x_continuous(limits = c(-3, 5))+
+ # xlab(expression(Posterior~effect~of~macroalgal~italic(delta)^15*N~on~muscle~italic(delta)^15*N)) +
+ xlab("")+
+ theme_bw() +
+   theme(element_text(size = 12),
+         legend.background = element_blank(),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+                panel.background = element_blank(),
+               plot.background = element_blank(),
+        legend.title = element_blank(),
+       # legend.position = c(.8, .8),
+        legend.position = "none")
+ muscle_logsb_posterior_plot 
+  
+ 
+poo_logsb_posterior_plot<-
+ggplot() +
+   geom_vline(xintercept=0, lty=2, alpha = .5)+
+###Posterior densities for stegastes - n15 
+  stat_halfeye(data = as_draws_df(steg_poo_n15_sb_nov23_nest_mod_sizec), aes(x = b_log_breeding_biomass_kgha_side_w_Iti_c,  y = 1.1, fill = "Damselfish", color = "Damselfish", pch = "Damselfish"), 
+               point_interval=NULL,  slab_alpha = .3) + 
+  ##posterior densites for Atri:
+  stat_halfeye(data = as_draws_df(acan_poo_n15_sb_nov23_nest_mod_sizec), aes(x = b_log_breeding_biomass_kgha_side_w_Iti_c,  y = 1, fill = "Surgeonfish", color = "Surgeonfish", pch = "Surgeonfish"), 
+               point_interval=NULL,  slab_alpha = .5) + 
+  
+  ##re-set color scale because outline is throwing off the legend:  
+    scale_fill_manual(values = poo_colors, name = "")+
+    scale_color_manual(values = poo_colors, name = "")+
+    new_scale_color()+
+   new_scale_fill()+
+  
+  #slab outline stegastes:
+    stat_halfeye(data = as_draws_df(steg_poo_n15_sb_nov23_nest_mod_sizec), aes(x = b_log_breeding_biomass_kgha_side_w_Iti_c,  y = 1.1), point_interval = NULL, slab_fill = NA, outline_bars = TRUE, slab_color = "#332288",   slab_linewidth = .5 ) + 
+  
+    #slab outline acan:
+    stat_halfeye(data = as_draws_df(acan_poo_n15_sb_nov23_nest_mod_sizec), aes(x = b_log_breeding_biomass_kgha_side_w_Iti_c,  y = 1), point_interval = NULL,  slab_fill = NA, outline_bars = TRUE, slab_color = "#88CCEE",   slab_linewidth = .5 ) + 
+  
+  
+  #intervals acan:
+   stat_halfeye(data = as_draws_df(acan_poo_n15_sb_nov23_nest_mod_sizec), aes(x = b_log_breeding_biomass_kgha_side_w_Iti_c,  y = 1, fill = "Surgeonfish", color = "Surgeonfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = .0, pch= 17,  point_size = 2 ) + 
+  
+  ###intervals for stegastes:   
+  stat_halfeye(data = as_draws_df(steg_poo_n15_sb_nov23_nest_mod_sizec), aes(x = b_log_breeding_biomass_kgha_side_w_Iti_c,  y = 1.1, fill = "Damselfish", color = "Damselfish"), 
+               point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = 0,  point_size = 2) + 
+  
+#now set formatting:
+  scale_y_continuous(breaks = NULL)+
+       scale_fill_manual(values = poo_colors, name = "", guide = "none")+
+  scale_color_manual(values = poo_colors, name = "", guide = "none")+
+      scale_shape_manual(values = shape, name = "")+
+  ylab("")+
+   scale_x_continuous(limits = c(-3, 5))+
+ # xlab(expression(Posterior~effect~of~macroalgal~italic(delta)^15*N~on~poole~italic(delta)^15*N)) +
+ xlab("")+
+ theme_bw() +
+   theme(element_text(size = 12),
+         legend.background = element_blank(),
+         panel.grid.major = element_blank(), # remove gridlines
+        panel.grid.minor = element_blank(), #remove gridlines
+        strip.background = element_blank(),
+        panel.background = element_blank(),
+       plot.background = element_blank(),
+        legend.title = element_blank(),
+       # legend.position = c(.8, .8),
+        legend.position = "none")
+ poo_logsb_posterior_plot 
+  
+
+```
+
+###combine plots:
+```{r}
+#now combine with posterior plots, too:-----
+muscle_n15_logsb_plot_inset <-
+  ggdraw() +
+  draw_plot(muscle_n15_logsb_plot) +
+  draw_plot(muscle_logsb_posterior_plot, x = 0.5, y = .08, width = .45, height = .35) # x = 0.11, y = .64,
+muscle_n15_logsb_plot_inset
+
+
+poo_n15_logsb_plot_inset <-
+  ggdraw() +
+  draw_plot(poo_n15_logsb_plot) +
+  draw_plot(poo_logsb_posterior_plot,x = 0.5, y = .08,  width = .45, height = .35)
+poo_n15_logsb_plot_inset
+
+
+n15_versus_logsb_plots_with_pp_insets<-plot_grid(muscle_n15_logsb_plot_inset, poo_n15_logsb_plot_inset,
+                                       ncol = 2)
+n15_versus_logsb_plots_with_pp_insets
+
+```
+
