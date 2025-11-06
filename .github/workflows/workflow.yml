@@ -1,30 +1,15 @@
-on:
+on: 
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Download pyDataverse ZIP from GitHub
-        run: |
-          curl -L https://github.com/IQSS/pyDataverse/archive/refs/heads/main.zip -o /tmp/pyDataverse.zip
-          unzip -q /tmp/pyDataverse.zip -d /tmp
-          mv /tmp/pyDataverse-main /tmp/pyDataverse
-
-      - name: Install pyDataverse from ZIP
-        run: |
-          pip install --upgrade pip
-          pip install /tmp/pyDataverse
-
-      - name: Send repo to Dataverse
+      - name: Send repo to Dataverse 
         uses: IQSS/dataverse-uploader@v1.6
         with:
-          DATAVERSE_TOKEN: ${{ secrets.DATAVERSE_TOKEN }}
+          DATAVERSE_TOKEN: ${{secrets.DATAVERSE_TOKEN}}
           DATAVERSE_SERVER: https://dataverse.harvard.edu
           DATAVERSE_DATASET_DOI: doi:10.7910/DVN/63YPGN
-          DELETE: True
-          PUBLISH: False
+		DELETE: True
+		PUBLISH: False
