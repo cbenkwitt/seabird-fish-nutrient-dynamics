@@ -2,8 +2,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
     steps:
       - name: Send repo to Dataverse 
         uses: IQSS/dataverse-uploader@v1.6
