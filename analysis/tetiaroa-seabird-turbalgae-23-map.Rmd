@@ -224,3 +224,15 @@ all_plot_comb
 
 ```
 
+#calculate some seabird summary stats to report in methods
+```{r}
+#by motu:
+sb_dat_full_w_Iti2%>%
+  group_by(Motu)%>%
+  summarize(mean_seabird = mean(breeding_biomass_kgha),
+            stdev_seabird =  sd(breeding_biomass_kgha),
+            n_seabird =  length(breeding_biomass_kgha),
+            se_seabird =  stdev_seabird/sqrt(n_seabird))
+
+```
+

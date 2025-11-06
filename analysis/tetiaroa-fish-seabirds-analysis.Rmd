@@ -433,3 +433,16 @@ n15_versus_logsb_plots_with_pp_insets
 
 ```
 
+
+##save plots-----
+```{r}
+
+n15_versus_logsb_plots_with_pp_insets<-plot_grid(muscle_n15_logsb_plot_inset, poo_n15_logsb_plot_inset,ncol = 2, labels = c("(a)", "(b)"), label_fontface = "plain", label_x = .14, label_y = 0.98, align = "hv")
+
+n15_versus_logsb_plots_with_pp_insets
+
+#ggsave(plot = n15_versus_logsb_plots_with_pp_insets, filename = "../outputs/figures/supp_fig_sb_n15.tif", 
+ #      width  = 1961, height = 1000, units = "px")
+
+```
+

@@ -468,19 +468,14 @@ n15_versus_turb_plots_with_pp_insets
 
 ###combine with seabird plots and save-----
 ```{r}
-#from other datafile:
+
+n15_versus_turb_plots_with_pp_insets<-plot_grid(muscle_n15_turb_plot_inset, poo_n15_turb_plot_inset, 
+                                       ncol = 2, labels = c("(a)", "(b)"), label_fontface = "plain", label_x = .14, label_y = 0.98, align = "hv")
 n15_versus_turb_plots_with_pp_insets
-n15_versus_logsb_plots_with_pp_insets
 
 
-
-n15_versus_turb_sb_plots_with_pp_insets<-plot_grid(muscle_n15_logsb_plot_inset, poo_n15_logsb_plot_inset, muscle_n15_turb_plot_inset, poo_n15_turb_plot_inset, 
-                                       ncol = 2, labels = c("(a)", "(b)", "(c)", "(d)"), label_fontface = "plain", label_x = .14, label_y = 0.98, align = "hv")
-n15_versus_turb_sb_plots_with_pp_insets
-
-
-#ggsave(plot = n15_versus_turb_sb_plots_with_pp_insets, filename = "../outputs/figures/figure1.tif", 
- #      width  = 1961, height = 2000, units = "px")
+#ggsave(plot = n15_versus_turb_plots_with_pp_insets, filename = "../outputs/figures/figure1.tif", 
+#       width  = 1961, height = 1000, units = "px")
 
 ```
 
