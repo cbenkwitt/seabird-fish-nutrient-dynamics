@@ -1,15 +1,24 @@
-on: 
+on:
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Send repo to Dataverse 
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # Fix compatibility issue with pyDataverse
+      - name: Downgrade jsonschema for pyDataverse
+        run: pip install "jsonschema<4.0"
+
+      # Send repository to Harvard Dataverse
+      - name: Send repo to Dataverse
         uses: IQSS/dataverse-uploader@v1.6
         with:
-          DATAVERSE_TOKEN: ${{secrets.DATAVERSE_TOKEN}}
-          DATAVERSE_SERVER: https://dataverse.harvard.edu
+          DATAVERSE_TOKEN: ${{ secrets.DATAVERSE_TOKEN }}
+          DATAVERSE_SERVER: dataverse.harvard.edu   
           DATAVERSE_DATASET_DOI: doi:10.7910/DVN/63YPGN
           DELETE: True
           PUBLISH: False
