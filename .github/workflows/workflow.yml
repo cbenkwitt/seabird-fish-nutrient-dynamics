@@ -9,15 +9,13 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # Install patched pyDataverse directly from GitHub with auth
+      # Install fixed pyDataverse directly from GitHub
       - name: Install compatible pyDataverse
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           pip install --upgrade pip
-          pip install "git+https://${GH_TOKEN}@github.com/IQSS/pyDataverse.git"
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          pip install git+https://github.com/IQSS/pyDataverse.git
 
-      # Upload repository to Harvard Dataverse
       - name: Send repo to Dataverse
         uses: IQSS/dataverse-uploader@v1.6
         with:
