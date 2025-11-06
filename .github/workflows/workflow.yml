@@ -9,11 +9,13 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # Fix compatibility issue with pyDataverse
-      - name: Downgrade jsonschema for pyDataverse
-        run: pip install "jsonschema<4.0"
+      # Install fixed pyDataverse version from GitHub (includes schema patch)
+      - name: Install compatible pyDataverse
+        run: |
+          pip install --upgrade pip
+          pip install git+https://github.com/IQSS/pyDataverse.git
 
-      # Send repository to Harvard Dataverse
+      # Upload repository to Harvard Dataverse
       - name: Send repo to Dataverse
         uses: IQSS/dataverse-uploader@v1.6
         with:
@@ -22,3 +24,4 @@ jobs:
           DATAVERSE_DATASET_DOI: doi:10.7910/DVN/63YPGN
           DELETE: True
           PUBLISH: False
+
