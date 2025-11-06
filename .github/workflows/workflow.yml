@@ -1,17 +1,13 @@
-on:
-  workflow_dispatch: # Allow manual triggering from the Actions tab
+on: 
+  workflow_dispatch:
 
 jobs:
-  upload_to_dataverse:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Upload to Dataverse
-        uses: IQSS/dataverse-uploader@v1 # Use the Dataverse Uploader Action
+      - name: Send repo to Dataverse 
+        uses: IQSS/dataverse-uploader@v1.6
         with:
-          DATAVERSE_TOKEN: ${{ secrets.DATAVERSE_TOKEN }} # Your Dataverse Personal Access Token
-          DATAVERSE_URL: "https://dataverse.harvard.edu" # URL of the Harvard Dataverse instance
-          DOI: "doi:10.7910/DVN/63YPGN" # Replace with your dataset's DOI
+          DATAVERSE_TOKEN: ${{secrets.DATAVERSE_TOKEN}}
+          DATAVERSE_SERVER: https://dataverse.harvard.edu
+          DATAVERSE_DATASET_DOI: doi:10.7910/DVN/63YPGN
