@@ -9,11 +9,13 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Manually clone pyDataverse
+      - name: Download pyDataverse ZIP from GitHub
         run: |
-          git clone https://github.com/IQSS/pyDataverse.git /tmp/pyDataverse
+          curl -L https://github.com/IQSS/pyDataverse/archive/refs/heads/main.zip -o /tmp/pyDataverse.zip
+          unzip -q /tmp/pyDataverse.zip -d /tmp
+          mv /tmp/pyDataverse-main /tmp/pyDataverse
 
-      - name: Install pyDataverse from local clone
+      - name: Install pyDataverse from ZIP
         run: |
           pip install --upgrade pip
           pip install /tmp/pyDataverse
