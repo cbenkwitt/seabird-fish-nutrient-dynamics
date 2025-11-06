@@ -9,12 +9,14 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # Install fixed pyDataverse directly from GitHub
-      - name: Install compatible pyDataverse
+      - name: Manually clone pyDataverse
+        run: |
+          git clone https://github.com/IQSS/pyDataverse.git /tmp/pyDataverse
+
+      - name: Install pyDataverse from local clone
         run: |
           pip install --upgrade pip
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-          pip install git+https://github.com/IQSS/pyDataverse.git
+          pip install /tmp/pyDataverse
 
       - name: Send repo to Dataverse
         uses: IQSS/dataverse-uploader@v1.6
