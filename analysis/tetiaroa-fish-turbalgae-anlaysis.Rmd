@@ -105,7 +105,7 @@ acan_23_turb_dat_no_out<-
 acan_23_turb_dat_no_out
 
 
-#(previously comapred outlier vs no outlier for all analyses)
+#see below for outlier vs. no outlier comparison. first proceed without outliers
 
 ```
 
@@ -221,7 +221,6 @@ acan_muscle_n15_turb_size_mod_c_no_out_nest%>%
 #0.6896479	0.1422835	1.231588	
 
 ```
-
 
 
 ####model plots------
@@ -475,9 +474,11 @@ n15_versus_turb_plots_with_pp_insets
 
 
 #ggsave(plot = n15_versus_turb_plots_with_pp_insets, filename = "../outputs/figures/figure1.tif", 
-#       width  = 1961, height = 1000, units = "px")
+   #  width  = 1961, height = 1000, units = "px")
 
 ```
+
+
 
 
 
@@ -496,12 +497,12 @@ acan_poo_muscle_n15_size_mod_c_no_out_nest <- brm(Poo_N15  ~ Muscle_N15_c + TL_c
               iter = 3000, warmup = 1000, cores=4, chains = 4, 
                   control = list(adapt_delta = 0.999, max_treedepth=15), 
                 file = "../outputs/brms/acan_poo_muscle_n15_size_mod_c_no_out_nest") #worked
-print(acan_poo_muscle_n15_size_mod_c_nest)
-pp_check(acan_poo_muscle_n15_size_mod_c_nest)
-plot(acan_poo_muscle_n15_size_mod_c_nest, ask  = FALSE)
+print(acan_poo_muscle_n15_size_mod_c_no_out_nest)
+pp_check(acan_poo_muscle_n15_size_mod_c_no_out_nest)
+plot(acan_poo_muscle_n15_size_mod_c_no_out_nest, ask  = FALSE)
 #looks good 
 
-hypothesis(acan_poo_muscle_n15_size_mod_c_nest, "Muscle_N15_c>0") #1*****
+hypothesis(acan_poo_muscle_n15_size_mod_c_no_out_nest, "Muscle_N15_c>0") #1*****
 
 
 steg_poo_muscle_n15_size_mod_c_no_out_nest <- brm(Poo_N15  ~ Muscle_N15_c + TL_cm_c + (1|Motu/Motu_Exposure),
@@ -533,6 +534,8 @@ steg_poo_muscle_n15_size_mod_c_no_out_nest%>%
 #1.112569	0.7331059	1.460298
 
 ```
+
+
 
 
 ###plot fecal n15~muscle n15
@@ -567,7 +570,7 @@ steg_23_turb_dat_no_out_c2%>%
    geom_line(data = steg_poo_muscle_n15_me_unscale, aes(y = estimate__), color = "#332288", alpha = .9, lwd = 1) +
      geom_ribbon(data = acan_poo_muscle_n15_me_unscale, aes(y = estimate__,  ymin = lower__, ymax=upper__), alpha = .2, fill = "#88CCEE")+
    geom_line(data = acan_poo_muscle_n15_me_unscale, aes(y = estimate__), color = "#88CCEE", alpha = .9, lwd = 1) +
-  geom_point(data = acan_23_turb_dat_c2, aes(pch = "Surgeonfish", color = "Surgeonfish"), size = 2)+
+  geom_point(data = acan_23_turb_dat_no_out_c2, aes(pch = "Surgeonfish", color = "Surgeonfish"), size = 2)+
   geom_point(aes(pch = "Damselfish", color = "Damselfish"), size = 2)+
   scale_color_manual(values = poo_colors, name = "")+
     scale_shape_manual(values = shape, name = "")+
@@ -593,7 +596,7 @@ ggplot() +
   stat_halfeye(data = as_draws_df(steg_poo_muscle_n15_size_mod_c_no_out_nest), aes(x = b_Muscle_N15_c,  y = 1.1, fill = "Damselfish", color = "Damselfish", pch = "Damselfish"), 
                point_interval=NULL,  slab_alpha = .3) + 
   ##posterior densites for Atri:
-  stat_halfeye(data = as_draws_df(acan_poo_muscle_n15_size_mod_c_nest), aes(x = b_Muscle_N15_c,  y = 1, fill = "Surgeonfish", color = "Surgeonfish", pch = "Surgeonfish"), 
+  stat_halfeye(data = as_draws_df(acan_poo_muscle_n15_size_mod_c_no_out_nest), aes(x = b_Muscle_N15_c,  y = 1, fill = "Surgeonfish", color = "Surgeonfish", pch = "Surgeonfish"), 
                point_interval=NULL,  slab_alpha = .5) + 
   
   ##re-set color scale because outline is throwing off the legend:  
@@ -606,11 +609,11 @@ ggplot() +
     stat_halfeye(data = as_draws_df(steg_poo_muscle_n15_size_mod_c_no_out_nest), aes(x = b_Muscle_N15_c,  y = 1.1), point_interval = NULL, slab_fill = NA, outline_bars = TRUE, slab_color = "#332288",   slab_linewidth = .5 ) + 
   
     #slab outline acan:
-    stat_halfeye(data = as_draws_df(acan_poo_muscle_n15_size_mod_c_nest), aes(x = b_Muscle_N15_c,  y = 1), point_interval = NULL,  slab_fill = NA, outline_bars = TRUE, slab_color = "#88CCEE",   slab_linewidth = .5 ) + 
+    stat_halfeye(data = as_draws_df(acan_poo_muscle_n15_size_mod_c_no_out_nest), aes(x = b_Muscle_N15_c,  y = 1), point_interval = NULL,  slab_fill = NA, outline_bars = TRUE, slab_color = "#88CCEE",   slab_linewidth = .5 ) + 
   
   
   #intervals acan:
-   stat_halfeye(data = as_draws_df(acan_poo_muscle_n15_size_mod_c_nest), aes(x = b_Muscle_N15_c,  y = 1, fill = "Surgeonfish", color = "Surgeonfish"), 
+   stat_halfeye(data = as_draws_df(acan_poo_muscle_n15_size_mod_c_no_out_nest), aes(x = b_Muscle_N15_c,  y = 1, fill = "Surgeonfish", color = "Surgeonfish"), 
                point_interval=median_hdi, .width=c(.85,.5),  slab_alpha = .0, pch= 17,  point_size = 2 ) + 
   
   ###intervals for stegastes:   
@@ -648,7 +651,7 @@ poo_muscle_n15_plot_inset
 
 
 #ggsave(plot = poo_muscle_n15_plot_inset, filename = "../outputs/figures/supp_fig_musc_poo_n15.tif", 
-#       width  = 1476, height = 1476, units = "px")
+ #      width  = 1476, height = 1476, units = "px")
 
 ```
 

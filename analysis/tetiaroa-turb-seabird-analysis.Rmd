@@ -99,7 +99,6 @@ turb_n15_logsb_nov23_nest_brm%>%
   median_hdi(log(2^b_log_biomass_iti_c))
 #1.335356	0.2569695	1.93319
 
-
 ```
 
 

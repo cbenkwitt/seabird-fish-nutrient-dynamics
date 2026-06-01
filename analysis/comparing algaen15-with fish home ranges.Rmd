@@ -1,0 +1,127 @@
+---
+title: "comparing algaen15-fishn15 with home ranges"
+author: "CEB"
+date: '2026-04-03'
+output: html_document
+---
+
+
+
+#-----------checking relationship between turbinaria n15 and fish n15-----------------
+ ##use turbinaria for surgeonfish - side of motu (because larger home range) - in old file already**
+ ##for damselfish - only use closest 3 algae samples (because small home range, encompasses capture area)
+ 
+
+##load packages
+```{r}
+library(tidyverse) #for everything
+
+#for bayesian modelling and interpreting:
+library(brms)
+library(tidybayes)
+library(emmeans)
+
+```
+
+
+#load data
+```{r}
+
+turb_23_gps_dat<-read.csv("../data/turb_gps_points.csv")
+turb_23_dat<-read.csv("../data/turb_focal_isotopes_nov_2023.csv")
+
+
+steg_23_dat<-read.csv("../data/stegastes_data.csv")%>%
+  select(-X)
+
+
+str(steg_23_dat)
+
+```
+
+#first need to combine Turbinaria data with info on side of motu and gps coords:
+```{r}
+
+turb_23_gps_dat2<-
+  turb_23_gps_dat%>%
+  rename(motu = Motu, 
+         side = Side,
+         waypoint = GPS_name)
+
+turb_23_gps_dat2
+
+
+turb_23_comb_dat<-
+  left_join(turb_23_dat, turb_23_gps_dat2,
+            by = join_by(motu, waypoint))
+turb_23_comb_dat
+#all good**
+
+
+##get mean turb value per side - predictor 1
+turb_23_mean_dat<-
+  turb_23_comb_dat%>%
+  group_by(motu, side)%>%
+  summarize(mean_turb_n15 = mean(X15N))%>%
+  ungroup()
+turb_23_mean_dat
+
+  turb_23_comb_dat%>%
+  group_by(motu, side)%>%
+  summarize(mean_turb_n15 = mean(X15N),
+            count_n15 = length(X15N))%>%
+  ungroup()
+
+```
+
+##get mean turb for closest 3 points
+```{r}
+
+#Aie	leeward		- 4, 5, 6	
+#Aie	windward			- 1, 2, 9
+#Reiono	leeward		- 35, 36, 37	
+#Reiono	windward		- 94, 95, 97	
+#Rimatuu	leeward	 -112, 113, 114		
+#Rimatuu	windward	- 332, 342, 10
+
+turb_23_mean_dat_for_steg<-
+turb_23_comb_dat %>%
+  filter(waypoint == 4|waypoint == 5|waypoint == 6|
+           waypoint == 1|waypoint == 2|waypoint == 9|
+           waypoint == 35|waypoint == 36|waypoint == 37|
+           waypoint == 94|waypoint == 95|waypoint == 97|
+           waypoint == 112|waypoint == 113|waypoint == 114|
+           waypoint == 332|waypoint == 342|waypoint == 10)%>%
+  group_by(motu, side)%>%
+  summarize(mean_turb_n15 = mean(X15N),
+            n_n15 = length(X15N))%>%
+  ungroup()
+
+turb_23_mean_dat_for_steg
+
+#from here:
+#Aie	leeward	10.903333	3	
+#Aie	windward	9.606667	3	
+#Reiono	leeward	14.013333	3	
+#Reiono	windward	10.433333	3	
+#Rimatuu	leeward	7.410000	3	
+#Rimatuu	windward	15.466667	3	
+
+
+#compare to above per side of motu: 
+#Aie	leeward	10.746667		
+#Aie	windward	9.606667		
+#Reiono	leeward	14.063333		
+#Reiono	windward	11.596667		
+#Rimatuu	leeward	7.537857		
+#Rimatuu	windward	15.476667	
+
+#nearly identical....
+
+cor.test(turb_23_mean_dat_for_steg$mean_turb_n15, turb_23_mean_dat$mean_turb_n15)
+#cor  = 0.9866321
+
+#so i think we're fine to just use side of motu for both species, since the values are nearly identical and nearly perfectly correlated**
+```
+
+
